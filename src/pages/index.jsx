@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,7 +17,6 @@ export default function Login() {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [dark, setDark] = useState(false);
-  const [accepted, setAccepted] = useState(false);
 
   // Load dark mode from localStorage
   useEffect(() => {
@@ -35,18 +33,17 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
-    if (!accepted) {
-      setMessage("You must accept the terms!");
-      setIsError(true);
-      return;
-    }
-
     setMessage("Logging in...");
     setIsError(false);
     try {
       // Find user in Firestore by email or fullName
       const userData = await findUserByEmailOrName(identifier);
       if (!userData) throw new Error("User not found");
+
+      // ✅ Check if user is active
+      if (userData.active === false) {
+        throw new Error("This account is inactive. Contact admin.");
+      }
 
       // Sign in with Firebase Auth using email
       await signInWithEmailAndPassword(auth, userData.email, password);
@@ -86,19 +83,10 @@ export default function Login() {
             className="bg-white dark:bg-gray-700 dark:text-white"
           />
 
-          {/* Terms + Dark Mode */}
-          <div className="flex justify-between items-center mt-2">
-            <div className="flex items-center gap-2">
-              <Checkbox id="terms" checked={accepted} onCheckedChange={setAccepted} />
-              <label htmlFor="terms" className="text-gray-700 dark:text-gray-300">
-                Accept
-              </label>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-gray-700 dark:text-gray-300">Dark</span>
-              <Switch checked={dark} onCheckedChange={toggleDark} />
-            </div>
+          {/* Dark Mode */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-gray-700 dark:text-gray-300">Dark</span>
+            <Switch checked={dark} onCheckedChange={toggleDark} />
           </div>
 
           {/* Login Button */}

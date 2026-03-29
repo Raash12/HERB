@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, addDoc, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
@@ -19,7 +19,7 @@ import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components
 import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { List, Users, PlusCircle, UserPlus, Loader2 } from "lucide-react";
+import { List, Users, Loader2, X } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -31,10 +31,16 @@ export default function AdminDashboard() {
   const [darkMode, setDarkMode] = useState(false);
 
   const [bForm, setBForm] = useState({ name: "", location: "" });
-  const [uForm, setUForm] = useState({ fullName: "", email: "", password: "", role: "doctor", branch: "" });
+  const [uForm, setUForm] = useState({ fullName: "", email: "", password: "", role: "doctor", branch: "", active: true });
+
+  const [editBranchId, setEditBranchId] = useState(null);
+  const [editUserId, setEditUserId] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
 
   // Dark mode toggle
   useEffect(() => {
@@ -42,7 +48,7 @@ export default function AdminDashboard() {
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
 
-  // Fetch data from Firebase
+  // Fetch data
   const fetchData = async () => {
     const bSnap = await getDocs(collection(db, "branches"));
     const uSnap = await getDocs(collection(db, "users"));
@@ -51,34 +57,73 @@ export default function AdminDashboard() {
   };
   useEffect(() => { fetchData(); }, []);
 
-  // Handlers
+  // Branch Actions
   const handleAddBranch = async () => {
     if (!bForm.name || !bForm.location) return alert("Fill all fields!");
-    await addDoc(collection(db, "branches"), bForm);
-    setBForm({ name: "", location: "" });
-    fetchData();
-    setActiveView("branches");
-  };
-
-  const handleAddUser = async () => {
-    if (!uForm.email || !uForm.password) return alert("Email & Password required");
     try {
       setLoading(true);
-      const res = await createUserWithEmailAndPassword(auth, uForm.email, uForm.password);
-      await setDoc(doc(db, "users", res.user.uid), {
-        fullName: uForm.fullName,
-        email: uForm.email,
-        role: uForm.role,
-        branch: uForm.branch
-      });
-      setUForm({ fullName: "", email: "", password: "", role: "doctor", branch: "" });
-      fetchData();
-      setActiveView("users");
+      if (editBranchId) {
+        // Edit branch
+        await updateDoc(doc(db, "branches", editBranchId), bForm);
+        setBranches(prev => prev.map(b => b.id === editBranchId ? { id: b.id, ...bForm } : b));
+      } else {
+        // Add branch
+        const docRef = await addDoc(collection(db, "branches"), bForm);
+        setBranches(prev => [...prev, { id: docRef.id, ...bForm }]);
+      }
+      setBForm({ name: "", location: "" });
+      setEditBranchId(null);
+      setShowBranchModal(false);
     } catch (err) {
       alert(err.message);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  const handleDeleteBranch = async (id) => {
+    if (!window.confirm("Delete this branch?")) return;
+    try {
+      await deleteDoc(doc(db, "branches", id));
+      setBranches(prev => prev.filter(b => b.id !== id));
+    } catch (err) { alert(err.message); }
+  };
+
+  // User Actions
+  const handleAddUser = async () => {
+    if (!uForm.email || (!editUserId && !uForm.password)) return alert("Email & Password required");
+    try {
+      setLoading(true);
+      if (editUserId) {
+        // Edit user
+        const updateData = { ...uForm };
+        if (!uForm.password) delete updateData.password;
+        await updateDoc(doc(db, "users", editUserId), updateData);
+        setUsers(prev => prev.map(u => u.id === editUserId ? { id: u.id, ...updateData } : u));
+      } else {
+        // Add user
+        const res = await createUserWithEmailAndPassword(auth, uForm.email, uForm.password);
+        const newUser = { id: res.user.uid, ...uForm };
+        await setDoc(doc(db, "users", res.user.uid), newUser);
+        setUsers(prev => [...prev, newUser]);
+      }
+      setUForm({ fullName: "", email: "", password: "", role: "doctor", branch: "", active: true });
+      setEditUserId(null);
+      setShowUserModal(false);
+    } catch (err) { alert(err.message); } finally { setLoading(false); }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm("Delete this user?")) return;
+    try {
+      await deleteDoc(doc(db, "users", id));
+      setUsers(prev => prev.filter(u => u.id !== id));
+    } catch (err) { alert(err.message); }
+  };
+
+  const handleToggleActive = async (user) => {
+    try {
+      await updateDoc(doc(db, "users", user.id), { active: !user.active });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, active: !u.active } : u));
+    } catch (err) { alert(err.message); }
   };
 
   // Pagination
@@ -92,35 +137,20 @@ export default function AdminDashboard() {
       <Sidebar className="bg-gray-900/80 backdrop-blur-xl text-gray-100 border-r border-gray-700 transition-colors duration-300">
         <SidebarContent>
           <div className="p-4 text-xl font-bold tracking-wider">ADMIN DASHBOARD</div>
-
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "dashboard"} onClick={() => setActiveView("dashboard")}>
                 <List size={18} /> Dashboard
               </SidebarMenuButton>
             </SidebarMenuItem>
-
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "branches"} onClick={() => setActiveView("branches")}>
                 <List size={18} /> Branches
               </SidebarMenuButton>
             </SidebarMenuItem>
-
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "users"} onClick={() => setActiveView("users")}>
                 <Users size={18} /> Users
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
-            <SidebarMenuItem>
-              <SidebarMenuButton isActive={activeView === "add-branch"} onClick={() => setActiveView("add-branch")}>
-                <PlusCircle size={18} /> Add Branch
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
-            <SidebarMenuItem>
-              <SidebarMenuButton isActive={activeView === "add-user"} onClick={() => setActiveView("add-user")}>
-                <UserPlus size={18} /> Add User
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -146,7 +176,6 @@ export default function AdminDashboard() {
                 <h2 className="text-3xl font-bold">{branches.length}</h2>
               </CardContent>
             </Card>
-
             <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-xl hover:scale-[1.02] transition">
               <CardContent className="p-6">
                 <p className="uppercase text-xs opacity-80">Total Users</p>
@@ -156,92 +185,133 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Table / Forms */}
-        <div className="mt-6 bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-
-          {/* Branches Table */}
-          {activeView === "branches" && (
-            <>
-              <h2 className="text-xl mb-4 font-semibold">Branches</h2>
-              <Table className="border border-gray-300 dark:border-gray-700">
-                <TableHeader>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Location</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedData.map(b => (
-                    <TableRow key={b.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                      <TableCell>{b.name}</TableCell>
-                      <TableCell>{b.location}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-            </>
-          )}
-
-          {/* Users Table */}
-          {activeView === "users" && (
-            <>
-              <h2 className="text-xl mb-4 font-semibold">Users</h2>
-              <Table className="border border-gray-300 dark:border-gray-700">
-                <TableHeader>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Role</TableCell>
-                    <TableCell>Branch</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedData.map(u => (
-                    <TableRow key={u.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                      <TableCell>{u.fullName}</TableCell>
-                      <TableCell className="capitalize">{u.role}</TableCell>
-                      <TableCell>{u.branch}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-            </>
-          )}
-
-          {/* Add Branch Form */}
-          {activeView === "add-branch" && (
-            <div className="space-y-3 max-w-md">
-              <Input placeholder="Branch Name" value={bForm.name} onChange={e => setBForm({...bForm, name: e.target.value})} />
-              <Input placeholder="Location" value={bForm.location} onChange={e => setBForm({...bForm, location: e.target.value})} />
-              <Button onClick={handleAddBranch} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">Save Branch</Button>
+        {/* Branches Table */}
+        {activeView === "branches" && (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Branches</h2>
+              <Button onClick={() => { setEditBranchId(null); setBForm({ name: "", location: "" }); setShowBranchModal(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                Add Branch
+              </Button>
             </div>
-          )}
 
-          {/* Add User Form */}
-          {activeView === "add-user" && (
-            <div className="space-y-3 max-w-md">
-              <Input placeholder="Full Name" value={uForm.fullName} onChange={e => setUForm({...uForm, fullName: e.target.value})} />
-              <Input placeholder="Email" value={uForm.email} onChange={e => setUForm({...uForm, email: e.target.value})} />
-              <Input type="password" placeholder="Password" value={uForm.password} onChange={e => setUForm({...uForm, password: e.target.value})} />
+            <Table className="border border-gray-300 dark:border-gray-700">
+              <TableHeader>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Location</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedData.map(b => (
+                  <TableRow key={b.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <TableCell>{b.name}</TableCell>
+                    <TableCell>{b.location}</TableCell>
+                    <TableCell className="flex gap-2">
+                      <Button size="sm" onClick={() => { setEditBranchId(b.id); setBForm({ name: b.name, location: b.location }); setShowBranchModal(true); }}>Edit</Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteBranch(b.id)}>Delete</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </>
+        )}
 
-              <select className="w-full p-2 border rounded" value={uForm.role} onChange={e => setUForm({...uForm, role: e.target.value})}>
+        {/* Users Table */}
+        {activeView === "users" && (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Users</h2>
+              <Button onClick={() => { setEditUserId(null); setUForm({ fullName: "", email: "", password: "", role: "doctor", branch: "", active: true }); setShowUserModal(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                Add User
+              </Button>
+            </div>
+
+            <Table className="border border-gray-300 dark:border-gray-700">
+              <TableHeader>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Branch</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedData.map(u => (
+                  <TableRow key={u.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <TableCell>{u.fullName}</TableCell>
+                    <TableCell className="capitalize">{u.role}</TableCell>
+                    <TableCell>{u.branch}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant={u.active ? "default" : "destructive"} onClick={() => handleToggleActive(u)}>
+                        {u.active ? "Active" : "Inactive"}
+                      </Button>
+                    </TableCell>
+                    <TableCell className="flex gap-2">
+                      <Button size="sm" onClick={() => { setEditUserId(u.id); setUForm({ fullName: u.fullName, email: u.email, password: "", role: u.role, branch: u.branch, active: u.active }); setShowUserModal(true); }}>Edit</Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteUser(u.id)}>Delete</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </>
+        )}
+
+        {/* Branch Modal */}
+        {showBranchModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-xl w-full max-w-md relative">
+              <button onClick={() => setShowBranchModal(false)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 dark:hover:text-white">
+                <X size={20} />
+              </button>
+              <h2 className="text-xl font-semibold mb-3">{editBranchId ? "Edit Branch" : "Add Branch"}</h2>
+              <Input placeholder="Branch Name" value={bForm.name} onChange={e => setBForm({...bForm, name: e.target.value})} className="mb-2"/>
+              <Input placeholder="Location" value={bForm.location} onChange={e => setBForm({...bForm, location: e.target.value})} />
+              <Button onClick={handleAddBranch} disabled={loading} className="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white">
+                {loading ? <Loader2 className="animate-spin" /> : editBranchId ? "Update Branch" : "Save Branch"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* User Modal */}
+        {showUserModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-xl w-full max-w-md relative">
+              <button onClick={() => setShowUserModal(false)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 dark:hover:text-white">
+                <X size={20} />
+              </button>
+              <h2 className="text-xl font-semibold mb-3">{editUserId ? "Edit User" : "Add User"}</h2>
+              <Input placeholder="Full Name" value={uForm.fullName} onChange={e => setUForm({...uForm, fullName: e.target.value})} className="mb-2"/>
+              <Input placeholder="Email" value={uForm.email} onChange={e => setUForm({...uForm, email: e.target.value})} className="mb-2" disabled={!!editUserId}/>
+              <Input type="password" placeholder="Password" value={uForm.password} onChange={e => setUForm({...uForm, password: e.target.value})} className="mb-2"/>
+              <select className="w-full p-2 border rounded mt-2" value={uForm.role} onChange={e => setUForm({...uForm, role: e.target.value})}>
                 <option value="doctor">Doctor</option>
                 <option value="admin">Admin</option>
               </select>
-
-              <select className="w-full p-2 border rounded" value={uForm.branch} onChange={e => setUForm({...uForm, branch: e.target.value})}>
+              <select className="w-full p-2 border rounded mt-2" value={uForm.branch} onChange={e => setUForm({...uForm, branch: e.target.value})}>
                 <option value="">Select Branch</option>
                 {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
               </select>
-
-              <Button onClick={handleAddUser} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                {loading ? <Loader2 className="animate-spin" /> : "Create User"}
+              <div className="mt-2">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={uForm.active} onChange={e => setUForm({...uForm, active: e.target.checked})} />
+                  Active
+                </label>
+              </div>
+              <Button onClick={handleAddUser} disabled={loading} className="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white">
+                {loading ? <Loader2 className="animate-spin" /> : editUserId ? "Update User" : "Create User"}
               </Button>
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
       </main>
     </SidebarProvider>
   );
