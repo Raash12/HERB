@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "./utils/supabaseClient";
+
+import { auth } from "./firebase"; // ✅ Firebase import
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function App() {
   const [dark, setDark] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [isError, setIsError] = useState(false); // ✅ track error or success
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("darkMode");
@@ -30,21 +32,19 @@ export default function App() {
     else document.documentElement.classList.remove("dark");
   };
 
+  // ✅ Firebase login
   const handleLogin = async () => {
     setMessage("Logging in...");
     setIsError(false);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setIsError(true); // error = red
-    } else {
-      setMessage("Login successful! User ID: " + data.user.id);
-      setIsError(false); // success = green
-      console.log("User:", data.user);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      setMessage("Login successful! UID: " + user.uid);
+      setIsError(false);
+      console.log("User:", user);
+    } catch (error) {
+      setMessage("Error: " + error.message);
+      setIsError(true);
     }
   };
 
@@ -55,7 +55,7 @@ export default function App() {
           <CardContent className="p-6 space-y-4">
 
             <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
-              ShadCN + Supabase Login
+              ShadCN + Firebase Login
             </h1>
 
             <div className="flex justify-center">
@@ -101,9 +101,7 @@ export default function App() {
             {/* Message */}
             {message && (
               <p
-                className={`text-center mt-2 ${
-                  isError ? "text-red-500" : "text-green-500"
-                }`}
+                className={`text-center mt-2 ${isError ? "text-red-500" : "text-green-500"}`}
               >
                 {message}
               </p>
