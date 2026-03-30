@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, UserPlus, MapPin, Stethoscope, Activity } from "lucide-react";
+import { Loader2, UserPlus, MapPin, Stethoscope, Activity, User } from "lucide-react";
 
 export default function CustomerRegistration() {
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,9 @@ export default function CustomerRegistration() {
     fullName: "",
     phone: "",
     address: "",
-    department: "", // New Field for Eye/Ear
+    age: "", // New Field
+    gender: "", // New Field
+    department: "", 
     doctorId: "",
     doctorName: "",
   });
@@ -74,12 +76,12 @@ export default function CustomerRegistration() {
       await addDoc(collection(db, "patients"), {
         ...formData,
         branch: myBranch, 
-        status: "waiting", 
+        status: "pending", // Consistent with your dashboard status
         createdAt: new Date(),
       });
 
       setStatus({ message: "Patient registered and sent to Dr. " + formData.doctorName, isError: false });
-      setFormData({ fullName: "", phone: "", address: "", department: "", doctorId: "", doctorName: "" });
+      setFormData({ fullName: "", phone: "", address: "", age: "", gender: "", department: "", doctorId: "", doctorName: "" });
     } catch (err) {
       setStatus({ message: err.message, isError: true });
     } finally {
@@ -93,18 +95,17 @@ export default function CustomerRegistration() {
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-extrabold flex items-center gap-2 dark:text-white">
-              {/* Changed icon color to Blue */}
               <UserPlus className="text-blue-600" /> New Patient
             </h2>
             <p className="text-sm text-gray-500 mt-1">Registering for <b>{myBranch || "Loading..."}</b></p>
           </div>
-          {/* Changed Badge color to Blue */}
           <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
             <MapPin size={14} className="mr-1" /> {myBranch || "Checking..."}
           </Badge>
         </div>
 
         <form onSubmit={handleRegisterPatient} className="space-y-4">
+          {/* Patient Name */}
           <div className="space-y-2">
             <label className="text-sm font-semibold ml-1">Patient Full Name</label>
             <Input 
@@ -113,6 +114,33 @@ export default function CustomerRegistration() {
               onChange={e => setFormData({...formData, fullName: e.target.value})} 
               required 
             />
+          </div>
+
+          {/* Age and Gender Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Age</label>
+              <Input 
+                type="number"
+                placeholder="Age" 
+                value={formData.age} 
+                onChange={e => setFormData({...formData, age: e.target.value})} 
+                required 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Gender</label>
+              <select 
+                className="w-full p-2.5 h-10 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                value={formData.gender}
+                onChange={e => setFormData({...formData, gender: e.target.value})}
+                required
+              >
+                <option value="">-- Gender --</option>
+                <option value="Male">Male (Lab)</option>
+                <option value="Female">Female (Dhedig)</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -135,7 +163,7 @@ export default function CustomerRegistration() {
             </div>
           </div>
 
-          {/* New Dropdown for Eye and Ear */}
+          {/* Department Selection */}
           <div className="space-y-2">
             <label className="text-sm font-semibold ml-1 text-blue-600 flex items-center gap-2">
               <Activity size={16} /> Department Selection
@@ -152,6 +180,7 @@ export default function CustomerRegistration() {
             </select>
           </div>
 
+          {/* Doctor Selection */}
           <div className="space-y-2 pt-2">
             <label className="text-sm font-semibold ml-1 text-blue-600 flex items-center gap-2">
               <Stethoscope size={16} /> Available Doctors ({myBranch})
@@ -179,13 +208,12 @@ export default function CustomerRegistration() {
             )}
           </div>
 
-          {/* Button changed to Blue */}
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-white font-bold transition-all shadow-lg" disabled={loading}>
-            {loading ? <Loader2 className="animate-spin mr-2" /> : "Complete Registration"}
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-white font-black transition-all shadow-lg mt-4" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin mr-2" /> : "COMPLETE REGISTRATION"}
           </Button>
 
           {status.message && (
-            <p className={`text-center text-sm font-medium ${status.isError ? "text-red-500" : "text-blue-600"}`}>
+            <p className={`text-center text-xs font-bold uppercase tracking-tight ${status.isError ? "text-red-500" : "text-blue-600"}`}>
               {status.message}
             </p>
           )}
