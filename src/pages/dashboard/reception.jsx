@@ -1,31 +1,36 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { collection, query, onSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot, where } from "firebase/firestore";
 
 // Components
 import CustomerRegistration from "../reception/CustomerRegistration";
+import ReceptionPrescriptions from "../reception/ReceptionPrescriptions"; 
 
 import { 
   SidebarProvider, Sidebar, SidebarContent, SidebarMenu, 
   SidebarMenuItem, SidebarMenuButton, SidebarFooter 
 } from "@/components/ui/sidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, UserPlus, LogOut, Moon, Sun, 
-  Users, UserCheck, Clock, PlusCircle, Loader2 
+  Users, Clock, FileText
 } from "lucide-react";
 
 export default function ReceptionDashboard() {
   const [activeView, setActiveView] = useState("dashboard");
   const [darkMode, setDarkMode] = useState(false);
-  const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, loading: true });
+  const [stats, setStats] = useState({ total: 0, pending: 0 });
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
+  const [showBadge, setShowBadge] = useState(false);
+  
+  // Waxaan u isticmaalay Ref si aan u la socono tiradii ugu dambaysay ee la arkay
+  const lastSeenCount = useRef(0);
   const navigate = useNavigate();
 
-  // --- DARK MODE LOGIC ---
+  // Dark Mode Logic
   useEffect(() => {
     const isDark = localStorage.getItem("darkMode") === "true";
     setDarkMode(isDark);
@@ -39,20 +44,49 @@ export default function ReceptionDashboard() {
     document.documentElement.classList.toggle("dark", newDark);
   };
 
-  // --- DATABASE LOGIC (REAL-TIME STATS) ---
   useEffect(() => {
-    const q = collection(db, "patients");
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allPatients = snapshot.docs.map(doc => doc.data());
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // 1. Stats Listener
+    const unsubPatients = onSnapshot(collection(db, "patients"), (snap) => {
+      const docs = snap.docs.map(d => d.data());
       setStats({
-        total: allPatients.length,
-        pending: allPatients.filter(p => p.status === "pending").length,
-        completed: allPatients.filter(p => p.status === "completed").length,
-        loading: false
+        total: docs.length,
+        pending: docs.filter(p => p.status === "pending" || p.status === "doctor").length,
       });
     });
-    return () => unsubscribe();
-  }, []);
+
+    // 2. Orders Listener (Notification Logic)
+    const qOrders = query(
+      collection(db, "prescriptions"),
+      where("sendTo", "==", currentUser.uid)
+    );
+
+    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
+      const currentCount = snapshot.docs.length;
+      
+      // Haddii tirada hadda ay ka badan tahay tii aan u dambaysay ee la arkay
+      if (currentCount > lastSeenCount.current && activeView !== "orders") {
+        setShowBadge(true);
+      }
+      
+      setNewOrdersCount(currentCount);
+      // Haddii uu joogo bogga orders, si toos ah u cusboonaysii "lastSeenCount"
+      if (activeView === "orders") {
+        lastSeenCount.current = currentCount;
+      }
+    });
+
+    return () => { unsubPatients(); unsubOrders(); };
+  }, [activeView]);
+
+  // Markii la gujiyo tab-ka Prescriptions
+  const handleOpenOrders = () => {
+    setActiveView("orders");
+    setShowBadge(false);
+    lastSeenCount.current = newOrdersCount; // Xafid tirada hadda jirta sidii "Read"
+  };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -63,138 +97,131 @@ export default function ReceptionDashboard() {
     <SidebarProvider>
       <Sidebar className="border-r border-blue-100 dark:border-blue-900/30">
         <SidebarContent>
-          {/* Logo Section - Font size reduced */}
-          <div className="p-5 font-black text-xl text-blue-600 dark:text-blue-500 tracking-tighter">
-            HERB <span className="text-gray-400 font-light text-base italic">RECEPTION</span>
+          <div className="p-6 mb-4 font-black text-xl text-blue-600 dark:text-blue-500 tracking-tighter">
+            HERB <span className="text-slate-400 font-light text-sm italic">RECEPTION</span>
           </div>
           
           <SidebarMenu className="px-3">
             <SidebarMenuItem>
-              <SidebarMenuButton 
-                isActive={activeView === "dashboard"} 
-                onClick={() => setActiveView("dashboard")}
-                className="h-10 rounded-lg transition-all text-sm"
-              >
-                <LayoutDashboard size={18} /> <span className="font-semibold">Overview</span>
+              <SidebarMenuButton isActive={activeView === "dashboard"} onClick={() => setActiveView("dashboard")} className="h-11 rounded-xl mb-1">
+                <LayoutDashboard size={18} /> <span className="font-bold">Overview</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            
+
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive={activeView === "registration"} onClick={() => setActiveView("registration")} className="h-11 rounded-xl mb-1">
+                <UserPlus size={18} /> <span className="font-bold">Registration</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton 
-                isActive={activeView === "registration"} 
-                onClick={() => setActiveView("registration")}
-                className="h-10 rounded-lg transition-all text-sm"
+                isActive={activeView === "orders"} 
+                onClick={handleOpenOrders} 
+                className="h-11 rounded-xl flex justify-between items-center"
               >
-                <UserPlus size={18} /> <span className="font-semibold">Registration</span>
+                <div className="flex items-center gap-2">
+                  <FileText size={18} /> <span className="font-bold">Prescriptions</span>
+                </div>
+                {showBadge && (
+                  <Badge className="bg-red-500 text-white text-[10px] h-5 min-w-5 flex items-center justify-center rounded-full animate-bounce border-none shadow-lg">
+                    {newOrdersCount - lastSeenCount.current > 0 ? newOrdersCount - lastSeenCount.current : "!"}
+                  </Badge>
+                )}
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2">
-          {/* Dark Mode Button */}
-          <SidebarMenuButton onClick={toggleDark} className="h-9 rounded-lg text-xs w-full justify-start">
-            {darkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-500" />}
-            <span className="font-medium ml-2">{darkMode ? "Light Mode" : "Dark Mode"}</span>
-          </SidebarMenuButton>
-          
-          {/* Logout Button - Isku xigaan hadda */}
-          <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 h-9 rounded-lg text-xs w-full justify-start">
-            <LogOut size={16} /> 
-            <span className="font-medium ml-2">Logout Account</span>
-          </SidebarMenuButton>
+        {/* Logout iyo Dark Mode oo Position sax ah ku jira */}
+        <SidebarFooter className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-transparent">
+          <div className="flex flex-col gap-1">
+            <SidebarMenuButton onClick={toggleDark} className="h-10 rounded-xl text-xs flex items-center">
+              {darkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-500" />}
+              <span className="ml-2 font-bold">{darkMode ? "Light Mode" : "Dark Mode"}</span>
+            </SidebarMenuButton>
+            
+            <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 h-10 rounded-xl text-xs flex items-center">
+              <LogOut size={16} /> <span className="ml-2 font-bold">Logout</span>
+            </SidebarMenuButton>
+          </div>
         </SidebarFooter>
       </Sidebar>
 
-      <main className="flex-1 bg-slate-50/50 dark:bg-[#020817] text-foreground transition-all duration-300 min-h-screen overflow-y-auto">
-        
-        {/* --- OVERVIEW VIEW --- */}
-        {activeView === "dashboard" && (
-          <div className="p-6 space-y-6 animate-in fade-in duration-700">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <h1 className="text-2xl font-black tracking-tight uppercase text-gray-800 dark:text-gray-100">Reception</h1>
-                <p className="text-muted-foreground font-medium text-xs">Patient management & queuing system.</p>
+      <main className="flex-1 bg-slate-50/40 dark:bg-[#020817] min-h-screen">
+        <div className="p-8 max-w-7xl mx-auto">
+          
+          {/* 1. OVERVIEW VIEW */}
+          {activeView === "dashboard" && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                  Reception <span className="text-blue-600">Overview</span>
+                </h1>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Live Monitoring System</p>
               </div>
-              <Button 
-                onClick={() => setActiveView("registration")}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md shadow-blue-600/20 px-5 h-9 text-xs"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" /> NEW PATIENT
-              </Button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {/* Total Card */}
+                <Card className="rounded-[1.5rem] border-none shadow-sm bg-white dark:bg-slate-900 transition-all hover:shadow-md">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10"><Users size={20} /></div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Patients</p>
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white">{stats.total}</h3>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Waiting Card */}
+                <Card className="rounded-[1.5rem] border-none shadow-sm bg-white dark:bg-slate-900 transition-all hover:shadow-md">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-500/10"><Clock size={20} /></div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">In Waiting</p>
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white">{stats.pending}</h3>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Orders Card */}
+                <Card className="rounded-[1.5rem] border-none shadow-sm bg-white dark:bg-slate-900 transition-all hover:shadow-md">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"><FileText size={20} /></div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prescriptions</p>
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white">{newOrdersCount}</h3>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
+          )}
 
-            {/* Stats Grid - Font and Padding reduced */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              <Card className="border-none shadow-sm bg-white dark:bg-slate-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                <CardHeader className="flex flex-row items-center justify-between pb-1">
-                  <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Registered</CardTitle>
-                  <Users className="h-3.5 w-3.5 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black">
-                    {stats.loading ? <Loader2 className="animate-spin h-5 w-5" /> : stats.total}
-                  </div>
-                  <p className="text-[9px] text-muted-foreground font-bold mt-0.5 uppercase tracking-tighter">Database Records</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-sm bg-white dark:bg-slate-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-                <CardHeader className="flex flex-row items-center justify-between pb-1">
-                  <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Awaiting Doctor</CardTitle>
-                  <Clock className="h-3.5 w-3.5 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black">
-                    {stats.loading ? <Loader2 className="animate-spin h-5 w-5" /> : stats.pending}
-                  </div>
-                  <Badge variant="outline" className="mt-1 bg-orange-50 dark:bg-orange-950/20 text-orange-600 border-none font-black text-[9px] h-4">QUEUED</Badge>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-sm bg-white dark:bg-slate-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
-                <CardHeader className="flex flex-row items-center justify-between pb-1">
-                  <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Treated Today</CardTitle>
-                  <UserCheck className="h-3.5 w-3.5 text-indigo-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black">
-                    {stats.loading ? <Loader2 className="animate-spin h-5 w-5" /> : stats.completed}
-                  </div>
-                  <p className="text-[9px] text-indigo-500 font-bold mt-0.5 uppercase tracking-tighter">Visits Done</p>
-                </CardContent>
-              </Card>
+          {/* 2. REGISTRATION VIEW */}
+          {activeView === "registration" && (
+            <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CustomerRegistration />
             </div>
-
-            {/* Quick Action Banner - Font sizes reduced */}
-            <Card className="border-none shadow-lg bg-blue-600 text-white p-6 rounded-2xl overflow-hidden relative group">
-               <div className="relative z-10 space-y-3">
-                  <h2 className="text-xl font-black italic tracking-tighter uppercase">Reception Workflow</h2>
-                  <p className="text-blue-50 text-xs max-w-xs leading-relaxed">Register new patients and assign them to available doctors in real-time.</p>
-                  <Button 
-                    variant="secondary" 
-                    onClick={() => setActiveView("registration")}
-                    className="bg-white text-blue-600 hover:bg-blue-50 font-black px-5 h-9 rounded-lg text-[10px] uppercase tracking-wider shadow-lg"
-                  >
-                    Start Registration
-                  </Button>
-               </div>
-               <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-105 transition-transform duration-700">
-                  <UserPlus size={180} />
-               </div>
-            </Card>
-          </div>
-        )}
-
-        {/* --- REGISTRATION VIEW --- */}
-        {activeView === "registration" && (
-          <div className="p-6 animate-in slide-in-from-bottom-4 duration-500">
-            <CustomerRegistration />
-          </div>
-        )}
+          )}
+          
+          {/* 3. PRESCRIPTIONS VIEW */}
+          {activeView === "orders" && (
+            <div className="animate-in fade-in zoom-in-95 duration-500">
+              <div className="mb-6 flex justify-between items-center border-b pb-4 dark:border-slate-800">
+                <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Prescriptions List</h2>
+                <Badge className="bg-blue-600 text-white font-bold">{newOrdersCount} Total</Badge>
+              </div>
+              <ReceptionPrescriptions />
+            </div>
+          )}
+        </div>
       </main>
     </SidebarProvider>
   );
