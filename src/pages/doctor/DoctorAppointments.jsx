@@ -5,7 +5,6 @@ import {
   collection, query, where, onSnapshot, orderBy, 
   doc, updateDoc, addDoc, getDocs 
 } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
 
 // UI Components
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
@@ -18,8 +17,7 @@ import { Badge } from "@/components/ui/badge";
 // Icons
 import { Loader2, Search, Eye, Pill, ArrowLeft, User, Send, Smartphone, MapPin, Activity } from "lucide-react";
 
-export default function DoctorAppointments() {
-  const navigate = useNavigate();
+export default function DoctorAppointments({ onOpenMedical, onOpenEye }) {
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -109,7 +107,7 @@ export default function DoctorAppointments() {
   );
 
   // =========================
-  // VIEW 2: COMPACT OVERVIEW (BLUE THEME)
+  // VIEW 2: EYE PRESCRIPTION FORM
   // =========================
   if (selectedPatient) {
     return (
@@ -125,7 +123,6 @@ export default function DoctorAppointments() {
           </div>
 
           <Card className="flex-1 flex flex-col rounded-[2.5rem] border shadow-2xl bg-card overflow-hidden border-blue-100 dark:border-blue-900/30">
-            {/* HEADER - CHANGED TO BLUE */}
             <div className="bg-blue-600 dark:bg-blue-700 p-6 flex justify-between items-center text-white">
               <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md"><User size={24} /></div>
@@ -141,7 +138,6 @@ export default function DoctorAppointments() {
             </div>
 
             <CardContent className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* INFO & RECEPTION */}
               <div className="grid md:grid-cols-3 gap-6">
                  <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100/50 dark:border-blue-800/20">
                     <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300"><Smartphone className="text-blue-600" size={16}/>{selectedPatient.phone}</div>
@@ -156,7 +152,6 @@ export default function DoctorAppointments() {
                  </div>
               </div>
 
-              {/* MEASUREMENTS */}
               <div className="grid md:grid-cols-2 gap-6">
                 {["RE", "LE"].map((eye) => (
                   <div key={eye} className="p-6 bg-card border border-blue-100 dark:border-blue-900/30 shadow-sm rounded-3xl space-y-4">
@@ -176,7 +171,6 @@ export default function DoctorAppointments() {
                 ))}
               </div>
 
-              {/* OPTIONS GRID */}
               <div className="space-y-3 pb-4">
                 <label className="text-[10px] font-black uppercase text-blue-600/70 ml-1 tracking-widest">Prescription Specifications</label>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
@@ -243,6 +237,7 @@ export default function DoctorAppointments() {
                 </TableCell>
                 <TableCell className="text-right pr-8">
                   <div className="flex justify-end gap-2">
+                    {/* BUTTON 1: Eye Prescription (Internal View) */}
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -252,11 +247,12 @@ export default function DoctorAppointments() {
                       <Eye size={14} className="mr-2" /> View Patient
                     </Button>
 
+                    {/* BUTTON 2: Medical Prescription (Prop to Dashboard) */}
                     <Button 
                       variant="ghost" 
                       size="sm" 
                       className="rounded-xl font-black uppercase text-[10px] text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 dark:border-emerald-900/50" 
-                      onClick={() => navigate(`/doctor/medical-prescription/${p.id}`)}
+                      onClick={() => onOpenMedical(p.id)}
                     >
                       <Pill size={14} className="mr-2" /> Meds
                     </Button>

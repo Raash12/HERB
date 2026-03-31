@@ -1,4 +1,3 @@
-// src/pages/doctor/DoctorDashboard.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -7,6 +6,8 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 // Components
 import DoctorAppointments from "../doctor/DoctorAppointments"; 
+import MedicalPrescription from "../doctor/MedicalPrescription"; 
+import PrescriptionPage from "../doctor/PrescriptionPage"; 
 
 import { 
   SidebarProvider, Sidebar, SidebarContent, SidebarMenu, 
@@ -22,14 +23,17 @@ import {
 export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState("dashboard");
+  const [selectedPatientId, setSelectedPatientId] = useState(null); // Track patient for forms
   const [darkMode, setDarkMode] = useState(false);
   
   const [stats, setStats] = useState({
-    total: 0,
-    completed: 0,
-    pending: 0,
-    loading: true
+    total: 0, completed: 0, pending: 0, loading: true
   });
+
+  // Navigation Handlers passed to sub-components
+  const openMedical = (id) => { setSelectedPatientId(id); setActiveView("medical"); };
+  const openEye = (id) => { setSelectedPatientId(id); setActiveView("eye"); };
+  const backToAppointments = () => { setSelectedPatientId(null); setActiveView("appointments"); };
 
   useEffect(() => {
     const isDark = localStorage.getItem("darkMode") === "true";
@@ -41,14 +45,9 @@ export default function DoctorDashboard() {
     const user = auth.currentUser;
     if (!user) return;
 
-    const q = query(
-      collection(db, "patients"), 
-      where("doctorId", "==", user.uid)
-    );
-
+    const q = query(collection(db, "patients"), where("doctorId", "==", user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allPatients = snapshot.docs.map(doc => doc.data());
-      
       setStats({
         total: allPatients.length,
         completed: allPatients.filter(p => p.status === "completed").length,
@@ -56,10 +55,8 @@ export default function DoctorDashboard() {
         loading: false
       });
     }, (error) => {
-      console.error("Firestore Error:", error);
       setStats(prev => ({ ...prev, loading: false }));
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -85,19 +82,21 @@ export default function DoctorDashboard() {
             <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
               <Stethoscope size={22} className="text-white" />
             </div>
-            <h1 className="font-black text-xl tracking-tighter text-slate-800 dark:text-white uppercase">HERB<span className="text-blue-600 font-light">DOC</span></h1>
+            <h1 className="font-black text-xl tracking-tighter text-slate-800 dark:text-white uppercase">
+              HERB<span className="text-blue-600 font-light">DOC</span>
+            </h1>
           </div>
 
           <SidebarMenu className="px-2">
             <SidebarMenuItem>
-              <SidebarMenuButton isActive={activeView === "dashboard"} onClick={() => setActiveView("dashboard")}>
+              <SidebarMenuButton isActive={activeView === "dashboard"} onClick={() => {setActiveView("dashboard"); setSelectedPatientId(null);}}>
                 <LayoutDashboard size={20} />
                 <span className="font-bold">Overview</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             
             <SidebarMenuItem>
-              <SidebarMenuButton isActive={activeView === "appointments"} onClick={() => setActiveView("appointments")}>
+              <SidebarMenuButton isActive={activeView === "appointments" || activeView === "medical" || activeView === "eye"} onClick={backToAppointments}>
                 <Calendar size={20} />
                 <span className="font-bold">Appointments</span>
               </SidebarMenuButton>
@@ -110,17 +109,14 @@ export default function DoctorDashboard() {
             {darkMode ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} className="text-blue-600" />}
             <span className="font-bold ml-2">{darkMode ? "Light" : "Dark"} Mode</span>
           </SidebarMenuButton>
-          
           <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl h-11">
-            <LogOut size={18} /> 
-            <span className="font-bold ml-2">Logout</span>
+            <LogOut size={18} /> <span className="font-bold ml-2">Logout</span>
           </SidebarMenuButton>
         </SidebarFooter>
       </Sidebar>
 
       <main className="flex-1 p-8 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-all duration-300 overflow-y-auto">
         
-        {/* VIEW: DASHBOARD */}
         {activeView === "dashboard" && (
           <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-8">
             <div className="flex flex-col gap-1">
@@ -141,12 +137,8 @@ export default function DoctorDashboard() {
                   <Badge className="bg-blue-400/30 text-white border-none font-black text-[10px] uppercase tracking-[0.2em] px-4 py-1">Quick Action</Badge>
                   <h2 className="text-4xl font-black uppercase leading-none tracking-tighter">Manage your <br/> Patients Now</h2>
                   <p className="text-blue-100 text-sm font-medium max-w-sm">Waxaad haysataa {stats.pending} bukaan oo ku sugaya Consultation.</p>
-                  
                   <div className="flex gap-4">
-                    <button 
-                      onClick={() => setActiveView("appointments")}
-                      className="bg-white text-blue-600 px-8 py-4 rounded-2xl font-black text-xs hover:shadow-2xl transition-all uppercase tracking-widest active:scale-95 flex items-center gap-2"
-                    >
+                    <button onClick={backToAppointments} className="bg-white text-blue-600 px-8 py-4 rounded-2xl font-black text-xs hover:shadow-2xl transition-all uppercase tracking-widest flex items-center gap-2">
                       <Calendar size={16} /> View Appointments
                     </button>
                   </div>
@@ -164,7 +156,7 @@ export default function DoctorDashboard() {
                   <h4 className="font-black text-xl uppercase tracking-tighter">System Live</h4>
                   <p className="text-[10px] text-slate-400 uppercase font-black mt-2 tracking-[0.2em]">Firestore Connected</p>
                 </div>
-              </Card>
+              </Card> 
             </div>
           </div>
         )}
@@ -172,7 +164,21 @@ export default function DoctorDashboard() {
         {/* VIEW: APPOINTMENTS */}
         {activeView === "appointments" && (
           <div className="animate-in slide-in-from-right-4 duration-500">
-            <DoctorAppointments />
+            <DoctorAppointments onOpenMedical={openMedical} onOpenEye={openEye} />
+          </div>
+        )}
+
+        {/* VIEW: MEDICAL PRESCRIPTION */}
+        {activeView === "medical" && selectedPatientId && (
+          <div className="animate-in zoom-in-95 duration-500">
+            <MedicalPrescription patientId={selectedPatientId} onBack={backToAppointments} />
+          </div>
+        )}
+
+        {/* VIEW: EYE PRESCRIPTION */}
+        {activeView === "eye" && selectedPatientId && (
+          <div className="animate-in zoom-in-95 duration-500">
+            <PrescriptionPage patientId={selectedPatientId} onBack={backToAppointments} />
           </div>
         )}
 
@@ -182,13 +188,7 @@ export default function DoctorDashboard() {
 }
 
 function StatCard({ title, value, icon, color, loading, progress }) {
-  const colors = {
-    blue: "bg-blue-600",
-    emerald: "bg-emerald-500",
-    orange: "bg-orange-500",
-    purple: "bg-purple-500"
-  };
-
+  const colors = { blue: "bg-blue-600", emerald: "bg-emerald-500", orange: "bg-orange-500", purple: "bg-purple-500" };
   return (
     <Card className="border-none shadow-xl bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden relative transition-transform hover:scale-[1.02]">
       <div className={`absolute top-0 left-0 w-1.5 h-full ${colors[color]}`} />
