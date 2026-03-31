@@ -3,9 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebase"; // Hubi in db halkan ku jiro
 import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { Activity } from "lucide-react";
+
 
 // Components
 import DoctorAppointments from "../doctor/DoctorAppointments"; 
+import Medical from "../doctor/Medical";
+import MedicalPrescription from "../doctor/MedicalPrescription";
 
 import { 
   SidebarProvider, Sidebar, SidebarContent, SidebarMenu, 
@@ -107,6 +111,16 @@ export default function DoctorDashboard() {
                 <span>My Appointments</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+  <SidebarMenuButton
+    isActive={activeView === "medical"}
+    onClick={() => setActiveView("medical")}
+  >
+    <Activity size={20} />
+    <span>Medical</span>
+  </SidebarMenuButton>
+</SidebarMenuItem>
+            
           </SidebarMenu>
         </SidebarContent>
 
@@ -225,11 +239,22 @@ export default function DoctorDashboard() {
           </div>
         )}
 
-        {activeView === "appointments" && (
-          <div className="animate-in slide-in-from-bottom-4 duration-500">
-            <DoctorAppointments />
-          </div>
-        )}
+       {/* ... other views ... */}
+
+{activeView === "appointments" && (
+  <div className="animate-in slide-in-from-bottom-4 duration-500">
+    <DoctorAppointments />
+  </div>
+)}
+
+{/* COMBINE THE MEDICAL VIEWS HERE */}
+{activeView === "medical" && (
+  <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-8">
+    <Medical />
+    <hr className="border-gray-200 dark:border-gray-800" /> 
+    <MedicalPrescription />
+  </div>
+)}
 
       </main>
     </SidebarProvider>
