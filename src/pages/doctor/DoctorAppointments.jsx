@@ -5,6 +5,7 @@ import {
   collection, query, where, onSnapshot, orderBy, 
   doc, updateDoc, addDoc, getDocs 
 } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 // UI Components
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
@@ -15,9 +16,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
 // Icons
-import { Loader2, Search, Eye, ArrowLeft, User, Send, Smartphone, MapPin, Activity } from "lucide-react";
+import { Loader2, Search, Eye, Pill, ArrowLeft, User, Send, Smartphone, MapPin, Activity } from "lucide-react";
 
 export default function DoctorAppointments() {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -240,9 +242,25 @@ export default function DoctorAppointments() {
                    </Badge>
                 </TableCell>
                 <TableCell className="text-right pr-8">
-                  <Button variant="ghost" size="sm" className="rounded-xl font-black uppercase text-[10px] text-blue-600 hover:bg-blue-600 hover:text-white transition-all border border-blue-100 dark:border-blue-900/50" onClick={() => openPrescription(p)}>
-                    <Eye size={14} className="mr-2" /> View Patient
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="rounded-xl font-black uppercase text-[10px] text-blue-600 hover:bg-blue-600 hover:text-white transition-all border border-blue-100 dark:border-blue-900/50" 
+                      onClick={() => openPrescription(p)}
+                    >
+                      <Eye size={14} className="mr-2" /> View Patient
+                    </Button>
+
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="rounded-xl font-black uppercase text-[10px] text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 dark:border-emerald-900/50" 
+                      onClick={() => navigate(`/doctor/medical-prescription/${p.id}`)}
+                    >
+                      <Pill size={14} className="mr-2" /> Meds
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
