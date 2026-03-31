@@ -1,15 +1,12 @@
+// src/pages/doctor/DoctorDashboard.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth, db } from "../../firebase"; // Hubi in db halkan ku jiro
+import { auth, db } from "../../firebase"; 
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { Activity } from "lucide-react";
-
 
 // Components
 import DoctorAppointments from "../doctor/DoctorAppointments"; 
-import Medical from "../doctor/Medical";
-import MedicalPrescription from "../doctor/MedicalPrescription";
 
 import { 
   SidebarProvider, Sidebar, SidebarContent, SidebarMenu, 
@@ -19,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   LayoutDashboard, Calendar, LogOut, Moon, Sun, Stethoscope,
-  Users, CheckCircle2, Clock, TrendingUp, Loader2
+  Users, CheckCircle2, Clock, TrendingUp, Loader2, Activity
 } from "lucide-react";
 
 export default function DoctorDashboard() {
@@ -27,7 +24,6 @@ export default function DoctorDashboard() {
   const [activeView, setActiveView] = useState("dashboard");
   const [darkMode, setDarkMode] = useState(false);
   
-  // States-ka xogta Database-ka
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -41,12 +37,10 @@ export default function DoctorDashboard() {
     if (isDark) document.documentElement.classList.add("dark");
   }, []);
 
-  // --- DATABASE LOGIC: Halkan ayay xogta ka imaanaysaa ---
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Waxaan raadinaynaa bukaanada uu Doctor ID-goodu yahay ka hadda login-ka ah
     const q = query(
       collection(db, "patients"), 
       where("doctorId", "==", user.uid)
@@ -81,182 +75,137 @@ export default function DoctorDashboard() {
     navigate("/");
   };
 
-  // Xisaabinta boqolleyda (Success Rate)
-  const successRate = stats.total > 0 
-    ? Math.round((stats.completed / stats.total) * 100) 
-    : 0;
+  const successRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarContent>
-          <div className="flex items-center gap-3 px-2 mb-8 mt-4 overflow-hidden">
-            <div className="bg-blue-600 p-2 rounded-lg shrink-0 shadow-lg shadow-blue-900/20">
-              <Stethoscope size={20} className="text-white" />
+          <div className="flex items-center gap-3 px-4 mb-8 mt-6">
+            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
+              <Stethoscope size={22} className="text-white" />
             </div>
-            <h1 className="font-bold text-lg tracking-tight text-white">DOCTOR PORTAL</h1>
+            <h1 className="font-black text-xl tracking-tighter text-slate-800 dark:text-white uppercase">HERB<span className="text-blue-600 font-light">DOC</span></h1>
           </div>
 
-          <SidebarMenu>
+          <SidebarMenu className="px-2">
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "dashboard"} onClick={() => setActiveView("dashboard")}>
                 <LayoutDashboard size={20} />
-                <span>Overview</span>
+                <span className="font-bold">Overview</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "appointments"} onClick={() => setActiveView("appointments")}>
                 <Calendar size={20} />
-                <span>My Appointments</span>
+                <span className="font-bold">Appointments</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-  <SidebarMenuButton
-    isActive={activeView === "medical"}
-    onClick={() => setActiveView("medical")}
-  >
-    <Activity size={20} />
-    <span>Medical</span>
-  </SidebarMenuButton>
-</SidebarMenuItem>
-            
           </SidebarMenu>
         </SidebarContent>
 
-        <SidebarFooter className="p-4 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2">
-          {/* Dark Mode Button */}
-          <SidebarMenuButton onClick={toggleDark} className="h-9 rounded-lg text-xs w-full justify-start">
-            {darkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-500" />}
-            <span className="font-medium ml-2">{darkMode ? "Light Mode" : "Dark Mode"}</span>
+        <SidebarFooter className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+          <SidebarMenuButton onClick={toggleDark} className="rounded-xl h-11">
+            {darkMode ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} className="text-blue-600" />}
+            <span className="font-bold ml-2">{darkMode ? "Light" : "Dark"} Mode</span>
           </SidebarMenuButton>
           
-          {/* Logout Button - Isku xigaan hadda */}
-          <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 h-9 rounded-lg text-xs w-full justify-start">
-            <LogOut size={16} /> 
-            <span className="font-medium ml-2">Logout Account</span>
+          <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl h-11">
+            <LogOut size={18} /> 
+            <span className="font-bold ml-2">Logout</span>
           </SidebarMenuButton>
         </SidebarFooter>
       </Sidebar>
 
-      <main className="flex-1 p-8 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-all duration-300 overflow-y-auto">
+      <main className="flex-1 p-8 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-all duration-300 overflow-y-auto">
         
+        {/* VIEW: DASHBOARD */}
         {activeView === "dashboard" && (
-          <div className="animate-in fade-in duration-500 space-y-8">
+          <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-8">
             <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-black tracking-tight">Overview</h1>
-              <p className="text-muted-foreground font-medium text-sm">Live data from your patient management system.</p>
+              <h1 className="text-4xl font-black tracking-tight uppercase">Dashboard</h1>
+              <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Hospital Management System</p>
             </div>
 
-            {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Card 1: Total */}
-              <Card className="border-none shadow-sm bg-white dark:bg-gray-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Visits</CardTitle>
-                  <Users className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-black">{stats.loading ? <Loader2 className="animate-spin h-6 w-6" /> : stats.total}</div>
-                  <Badge variant="outline" className="mt-2 text-[10px] border-blue-200 text-blue-600">Total Scheduled</Badge>
-                </CardContent>
-              </Card>
-
-              {/* Card 2: Completed */}
-              <Card className="border-none shadow-sm bg-white dark:bg-gray-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Completed</CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-black">{stats.loading ? <Loader2 className="animate-spin h-6 w-6" /> : stats.completed}</div>
-                  <p className="text-[10px] text-green-600 font-bold mt-1 uppercase">Processed</p>
-                </CardContent>
-              </Card>
-
-              {/* Card 3: Pending */}
-              <Card className="border-none shadow-sm bg-white dark:bg-gray-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Pending</CardTitle>
-                  <Clock className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-black">{stats.loading ? <Loader2 className="animate-spin h-6 w-6" /> : stats.pending}</div>
-                  <p className="text-[10px] text-orange-600 font-bold mt-1 uppercase">Waiting</p>
-                </CardContent>
-              </Card>
-
-              {/* Card 4: Success Rate */}
-              <Card className="border-none shadow-sm bg-white dark:bg-gray-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Success Rate</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-purple-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-black">{successRate}%</div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 h-1 rounded-full mt-3">
-                    <div 
-                      className="bg-purple-500 h-full rounded-full transition-all duration-1000" 
-                      style={{ width: `${successRate}%` }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+              <StatCard title="Total Visits" value={stats.total} icon={<Users className="text-blue-600" />} color="blue" loading={stats.loading} />
+              <StatCard title="Completed" value={stats.completed} icon={<CheckCircle2 className="text-emerald-500" />} color="emerald" loading={stats.loading} />
+              <StatCard title="Waiting" value={stats.pending} icon={<Clock className="text-orange-500" />} color="orange" loading={stats.loading} />
+              <StatCard title="Success Rate" value={`${successRate}%`} icon={<TrendingUp className="text-purple-500" />} color="purple" progress={successRate} />
             </div>
 
-            {/* Bottom Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2 p-8 bg-blue-600 text-white border-none shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
-                <div className="relative z-10 space-y-4 text-center md:text-left">
-                  <h2 className="text-2xl font-black italic uppercase tracking-tighter">Ready to Work?</h2>
-                  <p className="text-blue-100 text-sm max-w-sm">Waxaad hadda haysataa {stats.pending} bukaan oo ku sugaya. Guji badhanka si aad u bilowdo shaqada.</p>
-                  <button 
-                    onClick={() => setActiveView("appointments")}
-                    className="bg-white text-blue-600 px-6 py-2.5 rounded-lg font-black text-xs hover:shadow-xl transition-all uppercase tracking-widest"
-                  >
-                    Start Consultation
-                  </button>
+              <Card className="lg:col-span-2 p-10 bg-blue-600 text-white border-none shadow-2xl rounded-[2.5rem] relative overflow-hidden group">
+                <div className="relative z-10 space-y-6">
+                  <Badge className="bg-blue-400/30 text-white border-none font-black text-[10px] uppercase tracking-[0.2em] px-4 py-1">Quick Action</Badge>
+                  <h2 className="text-4xl font-black uppercase leading-none tracking-tighter">Manage your <br/> Patients Now</h2>
+                  <p className="text-blue-100 text-sm font-medium max-w-sm">Waxaad haysataa {stats.pending} bukaan oo ku sugaya Consultation.</p>
+                  
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setActiveView("appointments")}
+                      className="bg-white text-blue-600 px-8 py-4 rounded-2xl font-black text-xs hover:shadow-2xl transition-all uppercase tracking-widest active:scale-95 flex items-center gap-2"
+                    >
+                      <Calendar size={16} /> View Appointments
+                    </button>
+                  </div>
                 </div>
-                <div className="opacity-10 hidden md:block">
-                  <Stethoscope size={150} strokeWidth={1} />
-                </div>
+                <Activity size={200} className="absolute -right-10 -bottom-10 text-white/10 group-hover:scale-110 transition-transform duration-700" />
               </Card>
 
-              <Card className="p-6 border-none shadow-sm bg-white dark:bg-gray-900 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <div className="w-4 h-4 rounded-full bg-green-500 animate-pulse" />
+              <Card className="p-8 border-none shadow-xl bg-white dark:bg-slate-900 rounded-[2.5rem] flex flex-col items-center justify-center text-center space-y-6">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-[2rem] bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.5)]" />
+                  </div>
                 </div>
                 <div>
-                  <h4 className="font-bold text-lg tracking-tight">Cloud Sync</h4>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black mt-1 tracking-widest">Database is live</p>
+                  <h4 className="font-black text-xl uppercase tracking-tighter">System Live</h4>
+                  <p className="text-[10px] text-slate-400 uppercase font-black mt-2 tracking-[0.2em]">Firestore Connected</p>
                 </div>
               </Card>
             </div>
           </div>
         )}
 
-       {/* ... other views ... */}
-
-{activeView === "appointments" && (
-  <div className="animate-in slide-in-from-bottom-4 duration-500">
-    <DoctorAppointments />
-  </div>
-)}
-
-{/* COMBINE THE MEDICAL VIEWS HERE */}
-{activeView === "medical" && (
-  <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-8">
-    <Medical />
-    <hr className="border-gray-200 dark:border-gray-800" /> 
-    <MedicalPrescription />
-  </div>
-)}
+        {/* VIEW: APPOINTMENTS */}
+        {activeView === "appointments" && (
+          <div className="animate-in slide-in-from-right-4 duration-500">
+            <DoctorAppointments />
+          </div>
+        )}
 
       </main>
     </SidebarProvider>
+  );
+}
+
+function StatCard({ title, value, icon, color, loading, progress }) {
+  const colors = {
+    blue: "bg-blue-600",
+    emerald: "bg-emerald-500",
+    orange: "bg-orange-500",
+    purple: "bg-purple-500"
+  };
+
+  return (
+    <Card className="border-none shadow-xl bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden relative transition-transform hover:scale-[1.02]">
+      <div className={`absolute top-0 left-0 w-1.5 h-full ${colors[color]}`} />
+      <CardHeader className="flex flex-row items-center justify-between pb-2 px-6 pt-6">
+        <CardTitle className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{title}</CardTitle>
+        <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">{icon}</div>
+      </CardHeader>
+      <CardContent className="px-6 pb-6">
+        <div className="text-4xl font-black tracking-tighter">
+          {loading ? <Loader2 className="animate-spin h-8 w-8 text-slate-300" /> : value}
+        </div>
+        {progress !== undefined && (
+          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-4">
+            <div className={`${colors[color]} h-full rounded-full transition-all duration-1000`} style={{ width: `${progress}%` }} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
