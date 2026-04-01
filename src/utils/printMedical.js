@@ -1,110 +1,88 @@
+// ✅ SAXID: Ha isticmaalin import haddii Vite ay ku dhibayso. 
+// Waxaan u isticmaalaynaa jidka tooska ah ee (Public Folder) ama Base64.
+// Hubi in logo.png uu ku jiro folder-ka: public/logo.png
+
 export const handlePrintMedical = (order) => {
   const printWindow = window.open("", "_blank");
-  
-  // Format the date
-  const date = order.createdAt?.toDate 
-    ? order.createdAt.toDate().toLocaleDateString() 
-    : new Date().toLocaleDateString();
+  if (!printWindow) return;
+
+  // 1. SAXIDDA XOGTA BUKAANKA (Deep Extraction)
+  const p = order.patientInfo || {};
+  const patientName = p.name || p.fullName || order.fullName || order.name || "N/A";
+  const patientAge = p.age || order.age || "N/A";
+  const patientGender = p.gender || p.sex || order.gender || order.sex || "N/A";
+  const patientPhone = p.phone || order.phone || "N/A";
+  const patientAddress = p.address || order.address || "N/A";
+
+  const currentDate = new Date().toLocaleDateString('en-GB');
 
   const htmlContent = `
     <html>
       <head>
-        <title>Medical Prescription - ${order.patientInfo?.name}</title>
+        <title>Medical - ${patientName}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-          body { font-family: 'Inter', sans-serif; padding: 40px; color: #333; }
-          .header { border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .hospital-name { color: #2563eb; font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; font-size: 14px; }
-          .info-item { margin-bottom: 5px; }
-          .label { font-weight: 800; text-transform: uppercase; font-size: 10px; color: #666; display: block; }
-          .value { font-weight: 700; font-size: 15px; }
-          
-          .rx-symbol { font-size: 40px; font-weight: 900; color: #2563eb; margin-bottom: 10px; }
-          
-          table { width: 100%; border-collapse: collapse; margin-bottom: 50px; }
-          th { text-align: left; background: #f8fafc; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
-          td { padding: 15px 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 700; }
-          .qty { color: #2563eb; }
-          .notes { font-weight: 400; color: #64748b; font-style: italic; font-size: 12px; display: block; margin-top: 4px; }
-
-          .footer { margin-top: 100px; border-top: 1px solid #e2e8f0; pt: 20px; display: flex; justify-content: space-between; }
-          .signature { text-align: center; width: 200px; }
-          .sig-line { border-top: 1px solid #333; margin-top: 50px; padding-top: 5px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; color: #1e293b; background: white; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px; }
+          .logo-box { display: flex; align-items: center; gap: 15px; }
+          .logo-img { height: 60px; width: auto; }
+          .brand h1 { color: #2563eb; font-size: 22px; font-weight: 800; text-transform: uppercase; margin: 0; }
+          .patient-card { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 12px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
+          .info-item span { display: block; font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; }
+          .info-item p { font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 2px; }
+          table { width: 100%; border-collapse: collapse; }
+          th { background: #f1f5f9; padding: 12px; text-align: left; font-size: 10px; text-transform: uppercase; color: #475569; font-weight: 800; }
+          td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #334155; }
+          .policy { margin-top: 30px; text-align: center; font-size: 11px; font-weight: 700; color: #c2410c; background: #fff7ed; padding: 10px; border-radius: 8px; border: 1px solid #fed7aa; }
+          .footer { margin-top: 60px; display: flex; justify-content: space-between; }
+          .sig { border-top: 1px solid #000; width: 180px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div>
-            <h1 class="hospital-name">Medical Center</h1>
-            <p style="margin: 5px 0 0 0; font-size: 12px; font-weight: 600;">Prescription Receipt</p>
+          <div class="logo-box">
+            <img src="/logo.png" class="logo-img" onerror="this.style.display='none'" />
+            <div class="brand"><h1>HORSED EYE & ENT</h1><p style="font-size:9px; font-weight:700; color:#64748b;">Specialized Medical Clinic</p></div>
           </div>
-          <div style="text-align: right font-size: 12px;">
-            <div class="label">Date Issued</div>
-            <div class="value">${date}</div>
-          </div>
-        </div>
-
-        <div class="info-grid">
-          <div>
-            <div class="info-item">
-              <span class="label">Patient Name</span>
-              <span class="value">${order.patientInfo?.name}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Age / Gender</span>
-              <span class="value">${order.patientInfo?.age || 'N/A'} Yrs</span>
-            </div>
-          </div>
-          <div style="text-align: right;">
-            <div class="info-item">
-              <span class="label">Doctor Assigned</span>
-              <span class="value">Dr. ${order.doctorName}</span>
-            </div>
-             <div class="info-item">
-              <span class="label">Phone Number</span>
-              <span class="value">${order.patientInfo?.phone || 'N/A'}</span>
-            </div>
+          <div style="text-align: right; font-size: 11px; font-weight: 700;">
+            <p>Date: ${currentDate}</p>
+            <p>Phone: 615994202</p>
           </div>
         </div>
 
-        <div class="rx-symbol">℞</div>
+        <div class="patient-card">
+          <div class="info-item"><span>Patient Name</span><p>${patientName}</p></div>
+          <div class="info-item"><span>Age</span><p>${patientAge} Yrs</p></div>
+          <div class="info-item"><span>Gender</span><p>${patientGender}</p></div>
+          <div class="info-item"><span>District</span><p>${patientAddress}</p></div>
+        </div>
 
         <table>
           <thead>
-            <tr>
-              <th>Medicine Description</th>
-              <th style="text-align: center;">Qty</th>
-              <th>Dosage / Instructions</th>
-            </tr>
+            <tr><th width="40%">Medicine</th><th width="10%">Qty</th><th>Instructions / Dosage</th></tr>
           </thead>
           <tbody>
-            ${order.items.map(item => `
+            ${order.items?.map(item => `
               <tr>
-                <td>${item.medicineName}</td>
-                <td style="text-align: center;" class="qty">x${item.quantity}</td>
-                <td>
-                  ${item.dosage}
-                  <span class="notes">${item.notes || ''}</span>
-                </td>
+                <td style="font-weight:800; color:#1e293b;">${item.medicineName}</td>
+                <td style="font-weight:800; color:#2563eb;">x${item.quantity}</td>
+                <td><b>${item.dosage}</b><br><small style="color:#64748b; font-style:italic;">${item.notes || ''}</small></td>
               </tr>
-            `).join('')}
+            `).join('') || '<tr><td colspan="3">No records</td></tr>'}
           </tbody>
         </table>
 
+        <div class="policy">Fadlan: Soo laabashadu waa (7) maalmood gudahood oo kaliya.</div>
+
         <div class="footer">
-          <div class="signature">
-            <div class="sig-line">Pharmacist Signature</div>
-          </div>
-          <div class="signature">
-            <div class="sig-line">Doctor Signature</div>
-          </div>
+          <div class="sig">Doctor Signature</div>
+          <div class="sig">Pharmacist Signature</div>
         </div>
 
         <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() { window.close(); };
+          window.onload = () => {
+            setTimeout(() => { window.print(); window.close(); }, 300);
           };
         </script>
       </body>

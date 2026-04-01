@@ -1,31 +1,31 @@
-// src/pages/doctor/PrescriptionPage.jsx
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
+// ✅ SAXID: Named import halkan sidoo kale
+import { useReactToPrint } from "react-to-print";
+import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../../firebase";
-import {
-  doc,
-  getDoc,
-  addDoc,
-  collection,
-  updateDoc,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-
+import { doc, getDoc, addDoc, collection, updateDoc, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, Sun, Glasses, Activity } from "lucide-react";
+import { Eye, Activity, Loader2, ArrowLeft, Printer, User, MapPin, Phone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function PrescriptionPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const contentRef = useRef(null);
+
+  // ✅ SAXID: useReactToPrint Hook
+  const handlePrint = useReactToPrint({
+    contentRef,
+  });
 
   const [patient, setPatient] = useState(null);
   const [receptions, setReceptions] = useState([]);
   const [selectedReception, setSelectedReception] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   const [values, setValues] = useState({
     RE: { sph: "", cyl: "", axis: "" },
@@ -33,193 +33,139 @@ export default function PrescriptionPage() {
   });
 
   const [options, setOptions] = useState({
-    distance: false,
-    near: false,
-    bifocal: false,
-    progressive: false,
-    singleVision: false,
-    photoBrown: false,
-    photoGrey: false,
-    white: false,
-    sunglasses: false,
-    blueCut: false,
-    highIndex: false,
-    plasticCr39: false,
-    crookesB1: false,
-    crookesB2: false,
-    halfEye: false,
-    contactLenses: false,
-    kaPto: false,
+    distance: false, near: false, bifocal: false, progressive: false, 
+    singleVision: false, photoBrown: false, photoGrey: false, white: false,
+    sunglasses: false, blueCut: false, highIndex: false, plasticCr39: false,
+    crookesB1: false, crookesB2: false, halfEye: false, contactLenses: false, kaPto: false
   });
 
-  // ✅ FETCH PATIENT + RECEPTION USERS (SAME BRANCH)
   useEffect(() => {
     const fetch = async () => {
-      const snap = await getDoc(doc(db, "patients", id));
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() };
-        setPatient(data);
-
-        // 🔁 STATUS → doctor
-        await updateDoc(doc(db, "patients", id), {
-          status: "doctor",
-        });
-
-        // ✅ GET RECEPTIONS IN SAME BRANCH
-        const q = query(
-          collection(db, "users"),
-          where("role", "==", "reception"),
-          where("branch", "==", data.branch)
-        );
-
-        const res = await getDocs(q);
-        setReceptions(res.docs.map(d => ({ id: d.id, ...d.data() })));
-      }
+      try {
+        const snap = await getDoc(doc(db, "patients", id));
+        if (snap.exists()) {
+          const data = { id: snap.id, ...snap.data() };
+          setPatient(data);
+          const q = query(collection(db, "users"), where("role", "==", "reception"), where("branch", "==", data.branch));
+          const res = await getDocs(q);
+          setReceptions(res.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
+      } catch (err) { console.error(err); }
+      setFetching(false);
     };
-
     fetch();
   }, [id]);
 
-  // ✅ SAVE + SEND TO SELECTED RECEPTION
   const handleSave = async () => {
-    if (!selectedReception) {
-      alert("Select reception");
-      return;
-    }
-
+    if (!selectedReception) return alert("Fadlan dooro Reception-ka");
     setLoading(true);
-
     try {
       await addDoc(collection(db, "prescriptions"), {
         patientId: patient.id,
+        patientInfo: { name: patient.fullName, phone: patient.phone, age: patient.age },
         branch: patient.branch,
-        doctorId: patient.doctorId,
-        doctorName: patient.doctorName,
+        doctorName: patient.doctorName || "Specialist",
         sendTo: selectedReception,
-        values,
-        options,
-        createdAt: new Date(),
+        values, options, type: "optical", createdAt: new Date(),
       });
-
-      await updateDoc(doc(db, "patients", patient.id), {
-        status: "completed",
-        sendTo: selectedReception,
-      });
-
+      await updateDoc(doc(db, "patients", patient.id), { status: "completed" });
       alert("Sent to reception ✅");
-    } catch (err) {
-      console.error(err);
-      alert("Error sending prescription");
-    }
-
+      navigate(-1);
+    } catch (err) { alert("Error saving prescription"); }
     setLoading(false);
   };
 
-  if (!patient) return <p className="text-center mt-8">Loading patient info...</p>;
+  if (fetching) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold flex items-center gap-2 mb-4">
-        <Eye size={24} /> Prescription for {patient.fullName}
-      </h1>
+    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between no-print">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="font-bold text-blue-600">
+          <ArrowLeft size={18} className="mr-2" /> Back
+        </Button>
+        <Button onClick={() => handlePrint()} className="bg-blue-600 hover:bg-blue-700 font-bold text-white shadow-lg">
+          <Printer size={18} className="mr-2"/> Print Optical Card
+        </Button>
+      </div>
 
-      <Card>
-        <CardContent className="space-y-6">
-
-          {/* PATIENT INFO */}
-          <div className="bg-muted p-4 rounded-lg grid grid-cols-2 gap-2 text-sm">
-            <p><strong>Name:</strong> {patient.fullName}</p>
-            <p><strong>Age:</strong> {patient.age}</p>
-            <p><strong>Gender:</strong> {patient.gender}</p>
-            <p><strong>Phone:</strong> {patient.phone}</p>
-            <p><strong>District:</strong> {patient.address}</p>
-            <p><strong>Doctor:</strong> Dr. {patient.doctorName}</p>
+      <div ref={contentRef} className="bg-white p-6 rounded-[2.5rem] print:p-12">
+        {/* PATIENT INFO HEADER */}
+        <div className="grid md:grid-cols-3 gap-6 bg-slate-50 p-8 rounded-[2rem] border border-slate-100 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-600 p-4 rounded-2xl text-white"><User size={25} /></div>
+            <div className="text-left">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Full Name</p>
+              <h2 className="font-black text-lg text-blue-900 leading-tight">{patient?.fullName}</h2>
+            </div>
           </div>
-
-          {/* SELECT RECEPTION */}
-          <div>
-            <label className="text-sm font-bold">Send To Reception</label>
-            <select
-              className="w-full border p-2 rounded-md mt-1"
-              value={selectedReception}
-              onChange={(e) => setSelectedReception(e.target.value)}
-            >
-              <option value="">Select Reception</option>
-              {receptions.map((r) => (
-                <option key={r.id} value={r.id}>{r.fullName}</option>
-              ))}
-            </select>
+          <div className="space-y-1 text-left">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Vital Data</p>
+            <div className="flex gap-4 font-bold text-sm text-slate-600">
+              <span className="flex items-center gap-1"><Activity size={14}/> {patient?.age} Yrs</span>
+              <span className="flex items-center gap-1"><Phone size={14}/> {patient?.phone}</span>
+            </div>
           </div>
-
-          {/* OPTIONS */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-            {[
-              { key: "distance", label: "Distance", icon: Activity },
-              { key: "near", label: "Near", icon: Activity },
-              { key: "bifocal", label: "Bifocal", icon: Glasses },
-              { key: "progressive", label: "Progressive", icon: Glasses },
-              { key: "singleVision", label: "Single Vision", icon: Eye },
-              { key: "photoBrown", label: "Photo Brown", icon: Sun },
-              { key: "photoGrey", label: "Photo Grey", icon: Sun },
-              { key: "white", label: "White", icon: Eye },
-              { key: "sunglasses", label: "Sunglasses", icon: Sun },
-              { key: "blueCut", label: "Blue Cut", icon: Eye },
-              { key: "highIndex", label: "High Index", icon: Eye },
-              { key: "plasticCr39", label: "Plastic CR-39", icon: Eye },
-              { key: "crookesB1", label: "Crookes B1", icon: Glasses },
-              { key: "crookesB2", label: "Crookes B2", icon: Glasses },
-              { key: "halfEye", label: "Half Eye", icon: Eye },
-              { key: "contactLenses", label: "Contact Lenses", icon: Eye },
-              { key: "kaPto", label: "Ka/Pto", icon: Eye },
-            ].map(({ key, label, icon: Icon }) => (
-              <label key={key} className="flex items-center gap-2 border p-2 rounded-lg">
-                <Checkbox
-                  checked={options[key]}
-                  onCheckedChange={() => setOptions({ ...options, [key]: !options[key] })}
-                />
-                <Icon size={14} />
-                {label}
-              </label>
-            ))}
+          <div className="text-right">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Address</p>
+            <p className="font-bold text-sm text-slate-700 italic">{patient?.address || "N/A"}</p>
           </div>
+        </div>
 
-          {/* EYES */}
-          <div className="grid md:grid-cols-2 gap-4">
-            {["RE", "LE"].map((eye) => (
-              <div key={eye} className="border rounded-lg p-4 space-y-2">
-                <h3 className="font-bold text-center">{eye}</h3>
-                <Input
-                  placeholder="SPH"
-                  value={values[eye].sph}
-                  onChange={(e) =>
-                    setValues({ ...values, [eye]: { ...values[eye], sph: e.target.value } })
-                  }
-                />
-                <Input
-                  placeholder="CYL"
-                  value={values[eye].cyl}
-                  onChange={(e) =>
-                    setValues({ ...values, [eye]: { ...values[eye], cyl: e.target.value } })
-                  }
-                />
-                <Input
-                  placeholder="AXIS"
-                  value={values[eye].axis}
-                  onChange={(e) =>
-                    setValues({ ...values, [eye]: { ...values[eye], axis: e.target.value } })
-                  }
-                />
+        {/* EYES MEASUREMENTS */}
+        <div className="grid md:grid-cols-2 gap-8 mb-10">
+          {["RE", "LE"].map((eye) => (
+            <div key={eye} className="border-2 border-blue-50 rounded-[2rem] p-8 space-y-6 bg-white shadow-sm">
+              <h3 className="font-black text-center text-blue-600 border-b pb-3 uppercase tracking-widest">
+                {eye === "RE" ? "Right Eye (OD)" : "Left Eye (OS)"}
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1 text-center">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">SPH</label>
+                  <Input value={values[eye].sph} onChange={(e) => setValues({...values, [eye]: {...values[eye], sph: e.target.value}})} className="h-14 rounded-2xl text-center font-black text-lg border-blue-50" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">CYL</label>
+                  <Input value={values[eye].cyl} onChange={(e) => setValues({...values, [eye]: {...values[eye], cyl: e.target.value}})} className="h-14 rounded-2xl text-center font-black text-lg border-blue-50" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">AXIS</label>
+                  <Input value={values[eye].axis} onChange={(e) => setValues({...values, [eye]: {...values[eye], axis: e.target.value}})} className="h-14 rounded-2xl text-center font-black text-lg border-blue-50" />
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
 
-          {/* SAVE BUTTON */}
-          <Button onClick={handleSave} disabled={loading} className="w-full">
-            {loading ? "Sending..." : "Send Prescription"}
-          </Button>
+        {/* OPTIONS GRID (No print icons for cleaner layout) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10 no-print">
+          {Object.keys(options).map((key) => (
+            <label key={key} className={`flex items-center gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${options[key] ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white'}`}>
+              <Checkbox checked={options[key]} onCheckedChange={() => setOptions({ ...options, [key]: !options[key] })} />
+              <span className="text-[10px] font-black uppercase tracking-tight">{key.replace(/([A-Z])/g, ' $1')}</span>
+            </label>
+          ))}
+        </div>
+        
+        {/* PRINT-ONLY OPTIONS DISPLAY */}
+        <div className="hidden print:grid grid-cols-3 gap-4 border-t pt-8 mb-10">
+          {Object.entries(options).map(([key, val]) => val && (
+            <div key={key} className="text-[11px] font-bold text-slate-700 uppercase">✓ {key.replace(/([A-Z])/g, ' $1')}</div>
+          ))}
+        </div>
 
-        </CardContent>
-      </Card>
+        <div className="space-y-6 no-print border-t pt-8">
+           <div className="max-w-xs space-y-2 text-left">
+             <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1">Send To Reception</label>
+             <select className="w-full h-12 border-2 border-blue-50 rounded-xl px-4 font-bold bg-white" value={selectedReception} onChange={(e) => setSelectedReception(e.target.value)}>
+               <option value="">Select Receptionist</option>
+               {receptions.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+             </select>
+           </div>
+           <Button onClick={handleSave} disabled={loading} className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase rounded-[1.5rem] shadow-xl">
+             {loading ? <Loader2 className="animate-spin" /> : "Complete & Send to Reception"}
+           </Button>
+        </div>
+      </div>
     </div>
   );
 }

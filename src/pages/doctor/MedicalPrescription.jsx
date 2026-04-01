@@ -1,217 +1,145 @@
-import React, { useEffect, useState } from "react";
-import { db, auth } from "../../firebase";
-import { doc, getDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore";
+import React, { useEffect, useState, useRef } from "react";
+import { useReactToPrint } from "react-to-print";
+import { useParams, useNavigate } from "react-router-dom";
+import { db } from "../../firebase";
+import { doc, getDoc, addDoc, collection, updateDoc, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pill, User, ArrowLeft, Plus, Trash2, Send, Loader2, Activity } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Eye, Activity, Loader2, ArrowLeft, Printer, User, MapPin, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export default function MedicalPrescription({ patientId, onBack }) {
+export default function PrescriptionPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const contentRef = useRef(null);
+  const handlePrint = useReactToPrint({ contentRef });
+
   const [patient, setPatient] = useState(null);
-  const [medicines, setMedicines] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [selectedReception, setSelectedReception] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  
-  const [prescribedItems, setPrescribedItems] = useState([
-    { medicineId: "", medicineName: "", dosage: "", quantity: 1, notes: "" }
-  ]);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
+  const [values, setValues] = useState({
+    RE: { sph: "", cyl: "", axis: "" },
+    LE: { sph: "", cyl: "", axis: "" },
+  });
+
+  const [options, setOptions] = useState({
+    distance: false, near: false, bifocal: false, progressive: false, 
+    singleVision: false, photoBrown: false, photoGrey: false, white: false,
+    sunglasses: false, blueCut: false, highIndex: false, plasticCr39: false,
+    crookesB1: false, crookesB2: false, halfEye: false, contactLenses: false, kaPto: false
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!patientId) return;
+    const fetch = async () => {
       try {
-        const snap = await getDoc(doc(db, "patients", patientId));
+        const snap = await getDoc(doc(db, "patients", id));
         if (snap.exists()) {
-          const pData = { id: snap.id, ...snap.data() };
-          setPatient(pData);
-
-          const medQuery = query(collection(db, "branch_medicines"), where("branchId", "==", pData.branch));
-          const medSnap = await getDocs(medQuery);
-          setMedicines(medSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-          const recQuery = query(collection(db, "users"), where("role", "==", "reception"), where("branch", "==", pData.branch));
-          const recSnap = await getDocs(recQuery);
-          setReceptions(recSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          const data = { id: snap.id, ...snap.data() };
+          setPatient(data);
+          const q = query(collection(db, "users"), where("role", "==", "reception"), where("branch", "==", data.branch));
+          const res = await getDocs(q);
+          setReceptions(res.docs.map(d => ({ id: d.id, ...d.data() })));
         }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-      setLoading(false);
+      } catch (err) { console.error(err); }
+      setFetching(false);
     };
-    fetchData();
-  }, [patientId]);
+    fetch();
+  }, [id]);
 
-  const addRow = () => setPrescribedItems([...prescribedItems, { medicineId: "", medicineName: "", dosage: "", quantity: 1, notes: "" }]);
-  
-  const removeRow = (index) => {
-    if (prescribedItems.length > 1) {
-      setPrescribedItems(prescribedItems.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateRow = (index, field, value) => {
-    const updated = [...prescribedItems];
-    if (field === "medicineId") {
-      const selected = medicines.find(m => m.id === value);
-      updated[index].medicineName = selected?.medicineName || "";
-    }
-    updated[index][field] = field === "quantity" ? (parseInt(value) || 0) : value;
-    setPrescribedItems(updated);
-  };
-
-  const handleSend = async () => {
-    if (!selectedReception) return alert("Fadlan dooro Personnel-ka");
-    setActionLoading(true);
+  const handleSave = async () => {
+    if (!selectedReception) return alert("Select reception");
+    setLoading(true);
     try {
-      await addDoc(collection(db, "medical_prescriptions"), {
+      await addDoc(collection(db, "prescriptions"), {
         patientId: patient.id,
-        patientInfo: {
-          name: patient.fullName,
-          age: patient.age,
-          phone: patient.phone,
-          address: patient.address
-        },
-        doctorId: auth.currentUser.uid,
-        doctorName: patient.doctorName || "Doctor",
-        items: prescribedItems.filter(i => i.medicineId !== ""),
-        sendTo: selectedReception,
-        createdAt: new Date(),
+        patientInfo: { name: patient.fullName, phone: patient.phone, age: patient.age },
         branch: patient.branch,
-        type: "medical",
-        status: "pending"
+        doctorName: patient.doctorName || "Specialist",
+        sendTo: selectedReception,
+        values, options, type: "optical", createdAt: new Date(),
       });
-      alert("Prescription-ka waa loo diray Reception-ka ✅");
-      onBack(); // Go back to appointments view
-    } catch (e) { 
-      alert("Error sending prescription"); 
-    } finally {
-      setActionLoading(false);
-    }
+      await updateDoc(doc(db, "patients", patient.id), { status: "completed" });
+      alert("Sent to reception ✅");
+      navigate(-1);
+    } catch (err) { alert("Error saving"); }
+    setLoading(false);
   };
 
-  if (loading) return (
-    <div className="flex justify-center items-center p-20">
-      <Loader2 className="animate-spin text-blue-600" size={40} />
-    </div>
-  );
+  if (fetching) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={onBack} className="font-bold text-blue-600">
-          <ArrowLeft size={18} className="mr-2" /> Back
-        </Button>
-        <Badge className="bg-blue-600 text-white border-none px-4 py-1 uppercase text-[10px] font-black tracking-widest">
-          Prescription Mode
-        </Badge>
+    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between no-print">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="font-bold text-blue-600"><ArrowLeft size={18} className="mr-2" /> Back</Button>
+        <Button onClick={() => handlePrint()} className="bg-blue-600 hover:bg-blue-700 font-bold"><Printer size={18} className="mr-2"/> Print Optical Card</Button>
       </div>
 
-      {/* PATIENT HEADER */}
-      <div className="flex items-center justify-between bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-blue-100">
-        <div className="flex items-center gap-5">
-          <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-md">
-            <User size={28} />
+      <div ref={contentRef} className="bg-white p-6 rounded-[2.5rem]">
+        {/* PATIENT INFO HEADER */}
+        <div className="grid md:grid-cols-3 gap-6 bg-slate-50 p-8 rounded-[2rem] border border-slate-100 shadow-sm mb-8">
+          <div className="flex items-center gap-4 border-r border-slate-200">
+            <div className="bg-blue-600 p-4 rounded-2xl text-white"><User size={25} /></div>
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Full Name</p>
+              <h2 className="font-black text-lg text-blue-900">{patient?.fullName}</h2>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight">{patient?.fullName}</h2>
-            <p className="text-[10px] opacity-80 uppercase font-black tracking-widest mt-1 italic">
-              {patient?.age} Yrs • {patient?.phone}
-            </p>
+          <div className="border-r border-slate-200 px-2">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Details</p>
+            <div className="flex gap-4 font-bold text-sm">
+              <span className="flex items-center gap-1 text-slate-600"><Activity size={14}/> {patient?.age} Yrs</span>
+              <span className="flex items-center gap-1 text-slate-600"><Phone size={14}/> {patient?.phone}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">District</p>
+            <p className="font-bold text-sm text-slate-700 italic">{patient?.address || "N/A"}</p>
           </div>
         </div>
-        <Pill size={40} className="opacity-30" />
-      </div>
 
-      <Card className="rounded-[2.5rem] border-blue-100 shadow-2xl overflow-hidden bg-card">
-        <div className="p-6 bg-blue-50/50 border-b border-blue-100 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Activity size={18} className="text-blue-600" />
-            <span className="text-[11px] font-black uppercase text-blue-600 tracking-widest">Medication</span>
-          </div>
-          <Button size="sm" onClick={addRow} className="bg-blue-600 rounded-xl font-black text-[10px] uppercase px-4">
-            <Plus size={14} className="mr-1"/> Add Row
-          </Button>
-        </div>
-
-        <CardContent className="p-6 space-y-4">
-          {prescribedItems.map((item, idx) => (
-            <div key={idx} className="flex flex-wrap md:flex-nowrap gap-4 items-end p-5 bg-slate-50/50 rounded-[1.5rem] border border-blue-50">
-              <div className="flex-[2] min-w-[200px] space-y-1">
-                <label className="text-[9px] font-black text-blue-600/70 uppercase ml-1">Medicine Name</label>
-                <select 
-                  className="w-full h-12 border border-blue-100 rounded-xl px-4 text-sm font-bold bg-white outline-none focus:ring-2 ring-blue-600"
-                  value={item.medicineId}
-                  onChange={(e) => updateRow(idx, "medicineId", e.target.value)}
-                >
-                  <option value="">Select</option>
-                  {medicines.map(m => (
-                    <option key={m.id} value={m.id}>{m.medicineName} (Stock: {m.stockQuantity})</option>
-                  ))}
-                </select>
+        {/* EYES MEASUREMENTS */}
+        <div className="grid md:grid-cols-2 gap-8 mb-10">
+          {["RE", "LE"].map((eye) => (
+            <div key={eye} className="border-2 border-blue-50 rounded-[2rem] p-8 space-y-6 bg-white shadow-sm transition-all hover:shadow-md">
+              <h3 className="font-black text-center text-blue-600 border-b pb-3 uppercase tracking-widest">{eye === "RE" ? "Right Eye (OD)" : "Left Eye (OS)"}</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1 text-center"><label className="text-[10px] font-black text-slate-400 uppercase">SPH</label><Input value={values[eye].sph} onChange={(e) => setValues({...values, [eye]: {...values[eye], sph: e.target.value}})} className="h-14 rounded-2xl text-center font-black text-lg" /></div>
+                <div className="space-y-1 text-center"><label className="text-[10px] font-black text-slate-400 uppercase">CYL</label><Input value={values[eye].cyl} onChange={(e) => setValues({...values, [eye]: {...values[eye], cyl: e.target.value}})} className="h-14 rounded-2xl text-center font-black text-lg" /></div>
+                <div className="space-y-1 text-center"><label className="text-[10px] font-black text-slate-400 uppercase">AXIS</label><Input value={values[eye].axis} onChange={(e) => setValues({...values, [eye]: {...values[eye], axis: e.target.value}})} className="h-14 rounded-2xl text-center font-black text-lg" /></div>
               </div>
-
-              <div className="w-full md:w-24 space-y-1">
-                <label className="text-[9px] font-black text-blue-600/70 uppercase ml-1">Qty</label>
-                <Input 
-                  type="number"
-                  className="h-12 rounded-xl border-blue-100 font-black text-center text-blue-600" 
-                  value={item.quantity} 
-                  onChange={(e) => updateRow(idx, "quantity", e.target.value)} 
-                />
-              </div>
-
-              <div className="w-full md:w-32 space-y-1">
-                <label className="text-[9px] font-black text-blue-600/70 uppercase ml-1">Dosage</label>
-                <Input 
-                  placeholder="1x2" 
-                  className="h-12 rounded-xl border-blue-100 font-bold" 
-                  value={item.dosage} 
-                  onChange={(e) => updateRow(idx, "dosage", e.target.value)} 
-                />
-              </div>
-
-              <div className="flex-1 min-w-[150px] space-y-1">
-                <label className="text-[9px] font-black text-blue-600/70 uppercase ml-1">Instructions</label>
-                <Input 
-                  placeholder="Notes..." 
-                  className="h-12 rounded-xl border-blue-100 font-bold" 
-                  value={item.notes} 
-                  onChange={(e) => updateRow(idx, "notes", e.target.value)} 
-                />
-              </div>
-
-              <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 h-12 w-12" onClick={() => removeRow(idx)}>
-                <Trash2 size={20}/>
-              </Button>
             </div>
           ))}
+        </div>
 
-          <div className="pt-8 mt-6 border-t border-blue-100">
-            <div className="max-w-md space-y-2">
-              <label className="text-[10px] font-black text-blue-600/70 uppercase block ml-1">Send to Personnel</label>
-              <select 
-                className="w-full h-12 border-2 border-blue-50 rounded-xl px-4 text-sm font-bold bg-white"
-                value={selectedReception}
-                onChange={(e) => setSelectedReception(e.target.value)}
-              >
-                <option value="">Select Receptionist</option>
-                {receptions.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
-              </select>
-            </div>
+        {/* OPTIONS GRID */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10 no-print">
+          {Object.keys(options).map((key) => (
+            <label key={key} className={`flex items-center gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${options[key] ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:border-blue-200'}`}>
+              <Checkbox checked={options[key]} onCheckedChange={() => setOptions({ ...options, [key]: !options[key] })} />
+              <span className="text-[10px] font-black uppercase">{key.replace(/([A-Z])/g, ' $1')}</span>
+            </label>
+          ))}
+        </div>
 
-            <Button 
-              onClick={handleSend} 
-              disabled={actionLoading}
-              className="w-full mt-8 h-16 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase rounded-[1.5rem] shadow-xl shadow-blue-200"
-            >
-              {actionLoading ? <Loader2 className="animate-spin" /> : <><Send className="mr-2" size={20}/> Send to Reception</>}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* RECEPTION SELECT & SAVE */}
+        <div className="space-y-6 no-print">
+           <div className="max-w-xs space-y-2">
+             <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Send To Reception</label>
+             <select className="w-full h-12 border-2 border-blue-50 rounded-xl px-4 font-bold bg-white" value={selectedReception} onChange={(e) => setSelectedReception(e.target.value)}>
+               <option value="">Select Receptionist</option>
+               {receptions.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+             </select>
+           </div>
+           <Button onClick={handleSave} disabled={loading} className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase rounded-[1.5rem] shadow-xl">
+             {loading ? <Loader2 className="animate-spin" /> : "Complete & Send"}
+           </Button>
+        </div>
+      </div>
     </div>
   );
 }
