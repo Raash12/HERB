@@ -1,15 +1,37 @@
-export const handlePrintMedical = (order) => {
+import { db } from "../firebase"; // Hubi in jidkani sax yahay
+import { doc, getDoc } from "firebase/firestore";
+
+export const handlePrintMedical = async (order) => {
+  // 1. Marka hore soo qaad xogta bukaanka ee collection-ka "patients"
+  let patientData = {};
+  
+  if (order.patientId) {
+    try {
+      const patientRef = doc(db, "patients", order.patientId);
+      const patientSnap = await getDoc(patientRef);
+      
+      if (patientSnap.exists()) {
+        patientData = patientSnap.data();
+      }
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
+    }
+  }
+
+  // 2. Diyaarinta xogta la daabacayo (Haddii la waayo collection-ka, u isticmaal wixii order-ka ku jiray)
+  const patientName = patientData.fullName || order.patientName || "N/A";
+  const patientAge = patientData.age || order.age || "N/A";
+  const patientGender = patientData.gender || order.gender || "N/A";
+  const patientAddress = patientData.address || order.address || "N/A";
+
+  const branchName = order.branchName || "HORSEED EYE & E.N.T";
+  const branchLocation = order.branchLocation || "Banaadir wadada digfeer";
+  const branchPhone = order.branchPhone || "615994202";
+  const branchEmail = order.branchEmail || "Daahirx81@gmail.com";
+  const currentDate = new Date().toLocaleDateString('en-GB');
+
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
-
-  const p = order.patientInfo || {};
-  const patientName = p.name || p.fullName || order.fullName || order.name || "N/A";
-  const patientAge = p.age || order.age || "N/A";
-  const patientGender = p.gender || p.sex || order.gender || order.sex || "N/A";
-  const patientPhone = p.phone || order.phone || "N/A";
-  const patientAddress = p.address || order.address || "N/A";
-
-  const currentDate = new Date().toLocaleDateString('en-GB');
 
   const htmlContent = `
     <html>
@@ -17,86 +39,81 @@ export const handlePrintMedical = (order) => {
         <title>Medical - ${patientName}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+          @page { size: A5; margin: 0; }
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; color: #000; background: white; }
-          
-          /* HEADER - BLACK DESIGN */
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 25px; }
-          .logo-box { display: flex; align-items: center; gap: 15px; }
-          .logo-img { height: 60px; width: auto; }
-          .brand h1 { color: #000; font-size: 22px; font-weight: 800; text-transform: uppercase; margin: 0; }
-          
-          /* PATIENT INFO */
-          .patient-card { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 12px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #000; margin-bottom: 30px; }
-          .info-item span { display: block; font-size: 9px; font-weight: 800; color: #555; text-transform: uppercase; }
-          .info-item p { font-size: 13px; font-weight: 700; color: #000; margin-top: 2px; }
-          
-          /* TABLE - BLACK BORDERS */
-          table { width: 100%; border-collapse: collapse; }
-          th { background: #f1f5f9; padding: 12px; text-align: left; font-size: 10px; text-transform: uppercase; color: #000; font-weight: 800; border: 1px solid #000; }
-          td { padding: 15px; border: 1px solid #000; font-size: 14px; color: #000; }
-          
-          /* POLICY - BLACK TEXT */
-          .policy { 
-            margin-top: 30px; 
-            text-align: center; 
-            font-size: 11px; 
-            font-weight: 800; 
-            color: #000; 
-            background: #fff; 
-            padding: 10px; 
-            border-radius: 8px; 
-            border: 1px solid #000; 
+          body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            width: 148mm; height: 210mm; padding: 12mm; 
+            color: #1e3a8a; background: white; 
           }
+          .header { text-align: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; }
+          .brand-name { font-size: 36px; font-weight: 900; text-transform: uppercase; }
+          .sub-brand { font-size: 26px; font-weight: 800; margin-top: -5px; }
+          .contact-info { font-size: 13px; font-weight: 700; margin-top: 8px; line-height: 1.4; }
+          .doc-type { margin-top: 15px; font-size: 20px; font-weight: 900; text-decoration: underline; font-style: italic; }
           
-          .footer { margin-top: 60px; display: flex; justify-content: space-between; }
-          .sig { border-top: 2px solid #000; width: 180px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+          .info-table { width: 100%; margin-bottom: 20px; font-size: 14px; border-collapse: collapse; }
+          .info-table td { padding: 8px 0; border-bottom: 1px dashed #cbd5e1; }
+          .label { font-weight: 800; color: #64748b; text-transform: uppercase; width: 95px; display: inline-block; }
+          .value { font-weight: 900; color: #000; font-size: 16px; text-transform: uppercase; }
+
+          table.med-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          table.med-table th { background: #f1f5f9; padding: 10px; text-align: left; font-size: 12px; font-weight: 900; border: 2px solid #1e3a8a; }
+          table.med-table td { padding: 12px; border: 2px solid #1e3a8a; font-size: 15px; color: #000; font-weight: 700; }
+          
+          .policy { margin-top: 25px; text-align: center; font-size: 12px; font-weight: 900; border: 2px solid #1e3a8a; padding: 8px; background: #f8fafc; }
+          .footer { position: absolute; bottom: 12mm; left: 12mm; right: 12mm; display: flex; justify-content: space-between; }
+          .sig { border-top: 2px solid #000; width: 45%; text-align: center; padding-top: 8px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="logo-box">
-            <img src="/logo.png" class="logo-img" onerror="this.style.display='none'" />
-            <div class="brand"><h1>HORSED EYE & ENT</h1><p style="font-size:9px; font-weight:700; color:#000;">Specialized Medical Clinic</p></div>
+          <h1 class="brand-name">${branchName.split(' ')[0]}</h1>
+          <h2 class="sub-brand">${branchName.split(' ').slice(1).join(' ')}</h2>
+          <div class="contact-info">
+            TEL: ${branchPhone} ${branchLocation.split(' ')[0]} – SOMALIA <br>
+            EMAIL: ${branchEmail} <br>
+            ${branchLocation.toUpperCase()}
           </div>
-          <div style="text-align: right; font-size: 11px; font-weight: 700;">
-            <p>Date: ${currentDate}</p>
-            <p>Phone: 615994202</p>
-          </div>
+          <p class="doc-type">MEDICAL PRESCRIPTION</p>
         </div>
 
-        <div class="patient-card">
-          <div class="info-item"><span>Patient Name</span><p>${patientName}</p></div>
-          <div class="info-item"><span>Age</span><p>${patientAge} Yrs</p></div>
-          <div class="info-item"><span>Gender</span><p>${patientGender}</p></div>
-          <div class="info-item"><span>District</span><p>${patientAddress}</p></div>
-        </div>
+        <table class="info-table">
+          <tr>
+            <td><span class="label">PATIENT:</span> <span class="value">${patientName}</span></td>
+            <td><span class="label">DATE:</span> <span class="value">${currentDate}</span></td>
+          </tr>
+          <tr>
+            <td><span class="label">AGE/SEX:</span> <span class="value">${patientAge} YRS / ${patientGender}</span></td>
+            <td><span class="label">DISTRICT:</span> <span class="value">${patientAddress}</span></td>
+          </tr>
+        </table>
 
-        <table>
+        <table class="med-table">
           <thead>
-            <tr><th width="40%">Medicine</th><th width="10%">Qty</th><th>Instructions / Dosage</th></tr>
+            <tr><th width="50%">MEDICINE NAME</th><th width="10%">QTY</th><th>DOSAGE / INSTRUCTIONS</th></tr>
           </thead>
           <tbody>
             ${order.items?.map(item => `
               <tr>
-                <td style="font-weight:800;">${item.medicineName}</td>
-                <td style="font-weight:800;">x${item.quantity}</td>
-                <td><b>${item.dosage}</b><br><small style="color:#555; font-style:italic;">${item.notes || ''}</small></td>
+                <td style="font-size:18px; font-weight:900;">${item.medicineName.toUpperCase()}</td>
+                <td style="text-align:center; font-size:18px;">${item.quantity}</td>
+                <td style="font-size:16px; font-weight:800;">${item.dosage.toUpperCase()}</td>
               </tr>
-            `).join('') || '<tr><td colspan="3">No records</td></tr>'}
+            `).join('') || '<tr><td colspan="3" style="text-align:center;">NO MEDICINES RECORDED</td></tr>'}
           </tbody>
         </table>
 
-        <div class="policy">Fadlan: Soo laabashadu waa (7) maalmood gudahood oo kaliya.</div>
+        <div class="policy">FADLAN: SOO LAABASHADU WAA (7) MAALMOOD GUDAHIID OO KALIYA.</div>
 
         <div class="footer">
-          <div class="sig">Doctor Signature</div>
-          <div class="sig">Pharmacist Signature</div>
+          <div class="sig">DOCTOR SIGNATURE</div>
+          <div class="sig">PHARMACIST / STAMP</div>
         </div>
 
         <script>
           window.onload = () => {
-            setTimeout(() => { window.print(); window.close(); }, 300);
+            setTimeout(() => { window.print(); window.close(); }, 400);
           };
         </script>
       </body>
