@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Activity, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Activity, Search, DollarSign } from "lucide-react";
 
 export default function Medical() {
   const [userData, setUserData] = useState(null);
@@ -29,7 +29,8 @@ export default function Medical() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const [form, setForm] = useState({ medicineName: "", quantity: "", branchId: "" });
+  // Waxaan ku darnay 'price' halkan
+  const [form, setForm] = useState({ medicineName: "", quantity: "", branchId: "", price: "" });
 
   // 1. Load User Profile & Set Default Branch
   useEffect(() => {
@@ -42,7 +43,6 @@ export default function Medical() {
         setUserData(data);
         if (data.branch) setForm(f => ({ ...f, branchId: data.branch }));
         
-        // Load branches for Admin dropdown
         const bSnap = await getDocs(collection(db, "branches"));
         setAllBranches(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
@@ -67,7 +67,9 @@ export default function Medical() {
 
   // 3. Add/Update Stock Logic
   const handleAdd = async () => {
-    if (!form.medicineName || !form.quantity || !form.branchId) return alert("Fadlan buuxi xogta");
+    // Hubi haddii price la buuxiyay
+    if (!form.medicineName || !form.quantity || !form.branchId || !form.price) 
+      return alert("Fadlan buuxi dhammaan xogta (oo uu ku jiro qiimaha)");
 
     try {
       const name = form.medicineName.toLowerCase().trim();
@@ -80,20 +82,22 @@ export default function Medical() {
         const docRef = doc(db, "branch_medicines", existSnap.docs[0].id);
         await updateDoc(docRef, {
           quantity: increment(Number(form.quantity)),
+          price: Number(form.price), // Qiimaha ugu dambeeyay ayaa loo update-gareynayaa
           updatedAt: new Date()
         });
       } else {
         await addDoc(collection(db, "branch_medicines"), {
           medicineName: name,
           quantity: Number(form.quantity),
+          price: Number(form.price), // Qiimaha bilowga ah
           stockQuantity: 0, 
           branchId: form.branchId,
           updatedAt: new Date(),
         });
       }
       
-      alert("Stock Updated ✅");
-      setForm(prev => ({ ...prev, medicineName: "", quantity: "" }));
+      alert("Stock & Price Updated ✅");
+      setForm(prev => ({ ...prev, medicineName: "", quantity: "", price: "" }));
       fetchStock();
     } catch (err) { alert("Error saving stock"); }
   };
@@ -104,7 +108,7 @@ export default function Medical() {
   if (loading && !userData) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-black text-blue-600 uppercase tracking-tighter flex items-center gap-2">
@@ -120,12 +124,12 @@ export default function Medical() {
         </div>
       </div>
 
-      {/* ADD STOCK FORM (ONLY) */}
+      {/* ADD STOCK FORM */}
       <Card className="rounded-[2rem] shadow-xl border-none overflow-hidden">
         <div className="bg-blue-600 px-8 py-3">
             <span className="text-white text-[10px] font-black uppercase tracking-widest">Update Inventory</span>
         </div>
-        <CardContent className="p-8 grid md:grid-cols-4 gap-4 items-end">
+        <CardContent className="p-8 grid md:grid-cols-5 gap-4 items-end">
           <div className="space-y-1">
             <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Medicine Name</span>
             <Input value={form.medicineName} onChange={e => setForm({...form, medicineName: e.target.value})} className="rounded-xl bg-slate-50 border-none h-11" />
@@ -133,6 +137,11 @@ export default function Medical() {
           <div className="space-y-1">
             <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Quantity to Add</span>
             <Input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="rounded-xl bg-slate-50 border-none h-11" />
+          </div>
+          {/* QIIMAHA (PRICE) INPUT */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Price (Qiimaha)</span>
+            <Input type="number" value={form.price} placeholder="$ 0.00" onChange={e => setForm({...form, price: e.target.value})} className="rounded-xl bg-slate-50 border-none h-11" />
           </div>
           <div className="space-y-1">
             <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Branch</span>
@@ -159,6 +168,7 @@ export default function Medical() {
             <TableRow className="border-none">
               <TableCell className="font-bold py-4 pl-8 uppercase text-[11px] text-slate-400">Medicine</TableCell>
               <TableCell className="font-bold uppercase text-[11px] text-slate-400">Branch</TableCell>
+              <TableCell className="font-bold uppercase text-[11px] text-slate-400">Qiimaha</TableCell>
               <TableCell className="font-bold text-right pr-8 uppercase text-[11px] text-slate-400">Current Balance</TableCell>
             </TableRow>
           </TableHeader>
@@ -171,6 +181,13 @@ export default function Medical() {
                 <TableRow key={item.id} className="hover:bg-slate-50 border-slate-50">
                   <TableCell className="py-4 pl-8 font-black uppercase text-slate-700">{item.medicineName}</TableCell>
                   <TableCell className="text-xs font-bold text-blue-500 uppercase">{item.branchId}</TableCell>
+                  {/* QIIMAHA DISPLAY */}
+                  <TableCell>
+                    <div className="flex items-center text-slate-600 font-bold">
+                        <DollarSign size={14} className="text-emerald-500" />
+                        {item.price || "0.00"}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right pr-8">
                     <Badge className={`rounded-xl px-4 py-1 font-black ${
                         isLow ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'
