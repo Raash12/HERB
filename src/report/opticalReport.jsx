@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase"; 
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Printer, ChevronLeft, ChevronRight, Loader2, Users } from "lucide-react";
+import { Search, Printer, Loader2, Eye, User } from "lucide-react";
 
-// ✅ 1. IMPORT-KA CUSUB
+// ✅ IMPORT-KA PRINT-KA
 import { handlePrintPrescription } from "../utils/printPrescription";
 
 export default function OpticalReport() {
@@ -16,83 +16,165 @@ export default function OpticalReport() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 12;
 
   useEffect(() => {
-    const q = query(collection(db, "patients"), orderBy("createdAt", "desc"));
+    // Ka akhriso xogta 'prescriptions' oo ah halka muraayadaha lagu keydiyo
+    const q = query(collection(db, "prescriptions"), orderBy("createdAt", "desc"));
+
     const unsubscribe = onSnapshot(q, (snap) => {
-      setReports(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const data = snap.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+      setReports(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
-  // Filter
-  const filteredData = reports.filter(item => 
-    (item.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.phone || "").includes(searchTerm)
-  );
+  // Filter Logic
+  const filteredData = reports.filter(item => {
+    const name = (item.patientInfo?.fullName || item.patientName || item.displayName || "").toLowerCase();
+    const phone = (item.patientInfo?.phone || item.phone || "");
+    return name.includes(searchTerm.toLowerCase()) || phone.includes(searchTerm);
+  });
 
-  // Pagination logic
   const currentItems = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center bg-white p-6 rounded-[1.5rem] border shadow-sm">
-        <h1 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg text-white"><Users size={20} /></div>
-          OPTICAL REPORTS
-        </h1>
+    <div className="p-6 space-y-6 max-w-7xl mx-auto bg-slate-50/50 min-h-screen">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-[2rem] border shadow-sm gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
+              <Eye size={24} />
+            </div>
+            OPTICAL REPORTS
+          </h1>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 ml-12">
+            Patient Vision History & Sales
+          </p>
+        </div>
+        <Badge variant="secondary" className="rounded-full px-4 py-1 font-black text-blue-600 bg-blue-50 border-blue-100">
+          Total Records: {filteredData.length}
+        </Badge>
       </div>
 
-      <Card className="rounded-[2rem] border-none shadow-xl bg-white overflow-hidden">
-        <CardContent className="p-6">
-          <Input 
-            placeholder="Search..." 
-            className="mb-6 h-12 rounded-xl"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden">
+        <CardContent className="p-8">
+          {/* Search Box */}
+          <div className="relative mb-8 max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input 
+              placeholder="Search name or phone..." 
+              className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-          <div className="rounded-xl border overflow-hidden">
+          <div className="rounded-[1.5rem] border border-slate-100 overflow-hidden shadow-sm">
             <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+              <TableHeader className="bg-slate-50/80">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest py-5 pl-8">Date</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest">Patient Details</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Vision (R/L)</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest">Doctor</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Status</TableHead>
+                  <TableHead className="text-right font-black uppercase text-[10px] tracking-widest pr-8">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentItems.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="text-xs font-bold text-slate-400">
-                      {report.createdAt?.toDate ? report.createdAt.toDate().toLocaleDateString('en-GB') : 'N/A'}
-                    </TableCell>
-                    <TableCell className="font-black text-slate-800 uppercase">{report.fullName}</TableCell>
-                    <TableCell>{report.phone}</TableCell>
-                    <TableCell className="text-right">
-                      {/* ✅ 2. ISTICMAALKA BADHANKA PRINT-KA */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="rounded-xl border-blue-100 text-blue-600 font-bold hover:bg-blue-600 hover:text-white"
-                        onClick={() => handlePrintPrescription(report)}
-                      >
-                        <Printer size={14} className="mr-2" /> Print PDF
-                      </Button>
+                {currentItems.length > 0 ? (
+                  currentItems.map((report) => {
+                    // ✅ FALLBACK LOGIC: Hubi meesha magaca iyo telka ay ku jiraan
+                    const pName = report.patientInfo?.fullName || report.patientName || report.displayName || "Unknown Patient";
+                    const pPhone = report.patientInfo?.phone || report.phone || "N/A";
+                    const doctor = report.doctorName || "Specialist";
+
+                    return (
+                      <TableRow key={report.id} className="hover:bg-blue-50/30 transition-all border-b border-slate-50">
+                        <TableCell className="py-5 pl-8">
+                          <div className="text-[11px] font-bold text-slate-400 font-mono">
+                            {report.createdAt?.toDate ? report.createdAt.toDate().toLocaleDateString('en-GB') : 'N/A'}
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="bg-slate-100 p-2 rounded-lg text-slate-400">
+                              <User size={16} />
+                            </div>
+                            <div>
+                              <div className="font-black text-slate-800 uppercase text-sm leading-tight">
+                                {pName}
+                              </div>
+                              <div className="text-[10px] font-bold text-blue-500 mt-0.5">
+                                {pPhone}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex justify-center gap-2">
+                             <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-[10px] font-black border border-blue-100">
+                               R: {report.values?.RE?.sph || '0.00'} / {report.values?.RE?.cyl || '0.00'}
+                             </div>
+                             <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-lg text-[10px] font-black border border-purple-100">
+                               L: {report.values?.LE?.sph || '0.00'} / {report.values?.LE?.cyl || '0.00'}
+                             </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                           <div className="text-[10px] font-black text-slate-500 uppercase tracking-tight italic">
+                             Dr. {doctor}
+                           </div>
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          <Badge className={`text-[9px] font-black uppercase px-3 py-1 rounded-md ${report.status === 'completed' ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white'}`}>
+                            {report.status || 'Pending'}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="text-right pr-8">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="rounded-xl border border-slate-200 text-slate-600 font-black uppercase text-[10px] hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
+                            onClick={() => handlePrintPrescription(report)}
+                          >
+                            <Printer size={14} className="mr-2" /> PDF Report
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-20">
+                      <div className="flex flex-col items-center gap-2 text-slate-300">
+                        <Eye size={40} className="opacity-20" />
+                        <p className="italic font-bold">No optical records matches your search.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
-        {/* Pagination halkan ayaa geli lahaa... */}
       </Card>
     </div>
   );
