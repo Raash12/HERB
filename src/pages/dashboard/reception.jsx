@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 // Icons
 import { 
   LayoutDashboard, UserPlus, LogOut, Moon, Sun, 
-  Users, Clock, FileText, Lock, Search, ChevronLeft, ChevronRight, Loader2 
+  Users, Clock, FileText, Lock, Search, ChevronLeft, ChevronRight, Loader2, KeyRound 
 } from "lucide-react";
 
 export default function ReceptionDashboard() {
@@ -62,7 +62,6 @@ export default function ReceptionDashboard() {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    // 1. Stats Listener
     const unsubPatients = onSnapshot(collection(db, "patients"), (snap) => {
       const docs = snap.docs.map(d => d.data());
       setStats({
@@ -71,7 +70,6 @@ export default function ReceptionDashboard() {
       });
     });
 
-    // 2. Optical Prescriptions Listener
     const unsubOpt = onSnapshot(query(collection(db, "prescriptions"), where("sendTo", "==", currentUser.uid)), async (snap) => {
       const optData = await Promise.all(snap.docs.map(async (d) => {
         const data = d.data();
@@ -88,7 +86,6 @@ export default function ReceptionDashboard() {
       });
     });
 
-    // 3. Medical Prescriptions Listener (Tani waa halka Status-ka laga xukumo)
     const unsubMed = onSnapshot(query(collection(db, "medical_prescriptions"), where("sendTo", "==", currentUser.uid)), (snap) => {
       const medData = snap.docs.map(d => ({ 
         id: d.id, 
@@ -98,9 +95,7 @@ export default function ReceptionDashboard() {
       }));
 
       setPrescriptions(prev => {
-        // Halkan waxaan ku hubinaynaa in badge-ka la muujiyo haddii prescription cusub yimaado
         if (medData.length > lastSeenCount.current && activeView !== "orders") setShowBadge(true);
-        
         const filtered = prev.filter(p => p.category !== 'medical');
         return [...filtered, ...medData].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       });
@@ -109,7 +104,6 @@ export default function ReceptionDashboard() {
     return () => { unsubPatients(); unsubOpt(); unsubMed(); };
   }, [activeView]);
 
-  // Pagination Logic
   const filteredData = prescriptions.filter(item => 
     (item.displayName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -117,7 +111,6 @@ export default function ReceptionDashboard() {
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Password Update Logic
   const handleUpdatePassword = async () => {
     const { current, new: newPass, repeat } = passwords;
     if (!current || !newPass || !repeat) return alert("Fadlan buuxi meelaha banaan!");
@@ -138,29 +131,29 @@ export default function ReceptionDashboard() {
     <SidebarProvider>
       <Sidebar className="border-r border-blue-100 dark:border-blue-900/30">
         <SidebarContent>
-          <div className="p-6 mb-4 font-black text-xl text-blue-600 dark:text-blue-500 tracking-tighter text-center">
-            HERB <span className="text-slate-400 font-light text-sm italic tracking-normal">RECEPTION</span>
+          <div className="p-6 mb-4 font-black text-xl text-blue-600 dark:text-blue-500 tracking-tighter uppercase">
+            HERB <span className="text-slate-400 font-light text-sm italic tracking-normal">Reception</span>
           </div>
           <SidebarMenu className="px-3">
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "dashboard"} onClick={() => setActiveView("dashboard")}>
-                <LayoutDashboard size={18} /> <span className="font-bold">Overview</span>
+                <LayoutDashboard size={18} /> <span className="font-bold text-xs uppercase tracking-wider">Overview</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "registration"} onClick={() => setActiveView("registration")}>
-                <UserPlus size={18} /> <span className="font-bold">Registration</span>
+                <UserPlus size={18} /> <span className="font-bold text-xs uppercase tracking-wider">Registration</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "orders"} onClick={() => { setActiveView("orders"); setShowBadge(false); setCurrentPage(1); lastSeenCount.current = prescriptions.length; }}>
-                <FileText size={18} /> <span className="font-bold">Prescriptions</span>
+                <FileText size={18} /> <span className="font-bold text-xs uppercase tracking-wider">Prescriptions</span>
                 {showBadge && <Badge className="bg-red-500 ml-auto animate-bounce text-[10px]">New</Badge>}
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "settings"} onClick={() => setActiveView("settings")}>
-                <Lock size={18} /> <span className="font-bold">Security</span>
+                <Lock size={18} /> <span className="font-bold text-xs uppercase tracking-wider">Security</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -169,11 +162,11 @@ export default function ReceptionDashboard() {
           <div className="flex flex-col gap-1">
             <SidebarMenuButton onClick={toggleDark} className="h-10 rounded-xl text-xs flex items-center">
               {darkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-500" />}
-              <span className="ml-2 font-bold">{darkMode ? "Light Mode" : "Dark Mode"}</span>
+              <span className="ml-2 font-bold uppercase">{darkMode ? "Light" : "Dark"}</span>
             </SidebarMenuButton>
             <SidebarMenuButton onClick={async () => { await signOut(auth); navigate("/"); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 h-10 rounded-xl text-xs flex items-center transition-all">
               <LogOut size={16} />
-              <span className="ml-2 font-bold">Logout</span>
+              <span className="ml-2 font-bold uppercase">Logout</span>
             </SidebarMenuButton>
           </div>
         </SidebarFooter>
@@ -187,12 +180,12 @@ export default function ReceptionDashboard() {
               <Card className="p-8 rounded-[1.5rem] bg-white dark:bg-slate-900 border-none shadow-sm">
                 <Users className="text-blue-600 mb-2" size={28} />
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Patients</p>
-                <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.total}</h3>
+                <h3 className="text-3xl font-black">{stats.total}</h3>
               </Card>
               <Card className="p-8 rounded-[1.5rem] bg-white dark:bg-slate-900 border-none shadow-sm">
                 <Clock className="text-orange-500 mb-2" size={28} />
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">In Waiting</p>
-                <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.pending}</h3>
+                <h3 className="text-3xl font-black">{stats.pending}</h3>
               </Card>
             </div>
           )}
@@ -215,11 +208,7 @@ export default function ReceptionDashboard() {
               </div>
               
               <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white dark:bg-slate-900 overflow-hidden">
-                {/* Halkan markii aad koodhka dispending-ka sameyso, 
-                   xogta "prescriptions" waa inay is beddeshaa automatic.
-                */}
                 <ReceptionPrescriptions data={paginatedData} />
-
                 <div className="p-4 flex items-center justify-between border-t dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-4">
                     Page {currentPage} of {totalPages}
@@ -237,24 +226,58 @@ export default function ReceptionDashboard() {
             </div>
           )}
 
+          {/* UPDATED SECURITY VIEW STYLE */}
           {activeView === "settings" && (
-            <div className="max-w-md mx-auto mt-10 animate-in slide-in-from-bottom-4">
-              <Card className="p-8 rounded-[2rem] bg-white dark:bg-slate-900 border-t-4 border-blue-600 shadow-xl">
-                <div className="text-center mb-6">
-                   <div className="bg-blue-50 dark:bg-blue-900/20 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <Lock className="text-blue-600" size={28} />
-                   </div>
-                   <h2 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tight">Security Settings</h2>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Update your credentials</p>
+            <div className="max-w-md mx-auto space-y-6 animate-in slide-in-from-bottom-4 mt-10">
+              <div className="text-center">
+                <div className="bg-blue-100 dark:bg-blue-900/20 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <KeyRound className="text-blue-600" size={32} />
                 </div>
-                <div className="space-y-4">
-                  <Input type="password" placeholder="Current Password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" />
-                  <Input type="password" placeholder="New Password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" />
-                  <Input type="password" placeholder="Repeat Password" value={passwords.repeat} onChange={(e) => setPasswords({...passwords, repeat: e.target.value})} className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" />
-                  <Button onClick={handleUpdatePassword} disabled={loading} className="w-full h-12 bg-blue-600 font-black uppercase text-xs tracking-widest rounded-xl shadow-lg shadow-blue-200 dark:shadow-none">
-                    {loading ? <Loader2 className="animate-spin" /> : "Update Password"}
-                  </Button>
+                <h2 className="text-2xl font-black uppercase tracking-tighter">Security Settings</h2>
+                <p className="text-slate-400 text-sm uppercase font-bold text-[10px] tracking-widest">Update your credentials</p>
+              </div>
+
+              <Card className="p-8 rounded-[2.5rem] border-none shadow-xl bg-white dark:bg-slate-900 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase ml-1 text-slate-400">Current Password</label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" 
+                    value={passwords.current} 
+                    onChange={(e) => setPasswords({...passwords, current: e.target.value})} 
+                  />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase ml-1 text-slate-400">New Password</label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" 
+                    value={passwords.new} 
+                    onChange={(e) => setPasswords({...passwords, new: e.target.value})} 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase ml-1 text-slate-400">Repeat New Password</label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" 
+                    value={passwords.repeat} 
+                    onChange={(e) => setPasswords({...passwords, repeat: e.target.value})} 
+                  />
+                </div>
+
+                <Button 
+                  onClick={handleUpdatePassword} 
+                  disabled={loading} 
+                  className="w-full bg-blue-600 h-12 rounded-xl font-bold uppercase tracking-widest mt-4 shadow-lg shadow-blue-200 dark:shadow-none"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : "Update Password"}
+                </Button>
               </Card>
             </div>
           )}
