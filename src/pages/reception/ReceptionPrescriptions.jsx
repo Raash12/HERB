@@ -1,6 +1,6 @@
 import React from "react";
 import { db } from "../../firebase"; 
-import { doc, writeBatch, increment, deleteDoc } from "firebase/firestore";
+import { doc, writeBatch, increment, deleteDoc, getDoc } from "firebase/firestore"; // ✅ lagu daray getDoc
 
 // UI Components
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +13,43 @@ import { handlePrintPrescription } from "@/utils/printPrescription";
 import { handlePrintMedical } from "@/utils/printMedical";
 
 export default function ReceptionPrescriptions({ data }) {
+
+  // ✅ FUNCTION-KA CUSUB EE PRINT-KA DHAMAYSTIRAN
+  const handleEnhancedPrint = async (order) => {
+    try {
+      let patientData = {};
+      
+      // 1. Haddii uu leeyahay patientId, kasoo aqri xogta collection-ka Patients
+      if (order.patientId) {
+        const patientDoc = await getDoc(doc(db, "patients", order.patientId));
+        if (patientDoc.exists()) {
+          patientData = patientDoc.data();
+        }
+      }
+
+      // 2. Isku dar xogta order-ka iyo xogta rasmiga ah ee bukaanka
+      const completeOrder = {
+        ...order,
+        patientInfo: {
+          fullName: patientData.fullName || order.displayName || order.patientName || "N/A",
+          age: patientData.age || order.patientInfo?.age || "N/A",
+          phone: patientData.phone || order.patientInfo?.phone || "N/A",
+          address: patientData.address || "N/A",
+          gender: patientData.gender || "N/A"
+        }
+      };
+
+      // 3. U dir function-ka print-ka ee ku habboon
+      if (order.category === 'medical') {
+        handlePrintMedical(completeOrder);
+      } else {
+        handlePrintPrescription(completeOrder);
+      }
+    } catch (e) {
+      console.error("Print error:", e);
+      alert("Error loading patient data for print.");
+    }
+  };
   
   const handleConfirmDispense = async (order) => {
     if (!window.confirm("Ma hubtaa inaad bixisay daawadan? Stock-ga ayaa laga jaranayaa.")) return;
@@ -77,7 +114,7 @@ export default function ReceptionPrescriptions({ data }) {
                       </Button>
                     )}
                     <Button 
-                      onClick={() => order.category === 'medical' ? handlePrintMedical(order) : handlePrintPrescription(order)} 
+                      onClick={() => handleEnhancedPrint(order)} // ✅ Isticmaal function-ka cusub
                       size="sm" variant="outline" className="h-8 border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg font-black uppercase text-[9px]"
                     >
                       <Printer size={14} className="mr-1" /> Print

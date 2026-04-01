@@ -5,7 +5,9 @@ import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 
 // COMPONENTS
-import Medical from "../doctor/medical"; 
+// COMPONENTS
+import MedicalReport from "../../report/medicalReport"; 
+import OpticalReport from "../../report/opticalReport";
 
 // UI COMPONENTS (Shadcn UI)
 import { 
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 // ICONS
 import { 
   Users, Loader2, X, Search, ChevronLeft, ChevronRight, 
-  LayoutDashboard, Sun, Moon, Lock, LogOut, Building2, Activity, Trash2, Edit3, Plus, KeyRound
+  LayoutDashboard, Sun, Moon, Lock, LogOut, Building2, Activity, Trash2, Edit3, Plus, KeyRound, FileText, Eye
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -191,6 +193,22 @@ export default function AdminDashboard() {
                 <Users size={18} /> <span className="font-bold text-xs uppercase tracking-wider">Staff</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
+            {/* --- REPORTS SECTION --- */}
+            <div className="px-6 mt-6 mb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Analytics & Reports
+            </div>
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive={activeView === "medical_report"} onClick={() => { setActiveView("medical_report"); setCurrentPage(1); }}>
+                <FileText size={18} className="text-emerald-500" /> <span className="font-bold text-xs uppercase tracking-wider">Medical Reports</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive={activeView === "optical_report"} onClick={() => { setActiveView("optical_report"); setCurrentPage(1); }}>
+                <Eye size={18} className="text-purple-500" /> <span className="font-bold text-xs uppercase tracking-wider">Optical Reports</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "security"} onClick={() => setActiveView("security")}>
                 <Lock size={18} /> <span className="font-bold text-xs uppercase tracking-wider">Security</span>
@@ -283,7 +301,19 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* UPDATED SECURITY VIEW */}
+          {/* REPORTS VIEWS */}
+          {activeView === "medical_report" && (
+            <div className="animate-in fade-in">
+              <MedicalReport />
+            </div>
+          )}
+
+          {activeView === "optical_report" && (
+            <div className="animate-in fade-in">
+              <OpticalReport />
+            </div>
+          )}
+
           {activeView === "security" && (
             <div className="max-w-md mx-auto space-y-6 animate-in slide-in-from-bottom-4 mt-10">
               <div className="text-center">
@@ -385,7 +415,7 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* MODALS remain same blue themed */}
+      {/* MODALS */}
       {showStockModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl relative border-t-8 border-blue-600 animate-in zoom-in-95">
