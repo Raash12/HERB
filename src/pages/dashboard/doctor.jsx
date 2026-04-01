@@ -104,15 +104,33 @@ export default function DoctorDashboard() {
           </SidebarMenu>
         </SidebarContent>
 
-        <SidebarFooter className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-          <SidebarMenuButton onClick={toggleDark} className="rounded-xl h-11">
-            {darkMode ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} className="text-blue-600" />}
-            <span className="font-bold ml-2">{darkMode ? "Light" : "Dark"} Mode</span>
-          </SidebarMenuButton>
-          <SidebarMenuButton onClick={handleLogout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl h-11">
-            <LogOut size={18} /> <span className="font-bold ml-2">Logout</span>
-          </SidebarMenuButton>
-        </SidebarFooter>
+        <SidebarFooter className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-transparent">
+  <div className="flex flex-col gap-1">
+    
+    <SidebarMenuButton 
+      onClick={toggleDark} 
+      className="h-10 rounded-xl text-xs flex items-center"
+    >
+      {darkMode ? (
+        <Sun size={16} className="text-yellow-500" />
+      ) : (
+        <Moon size={16} className="text-blue-500" />
+      )}
+      <span className="ml-2 font-bold">
+        {darkMode ? "Light Mode" : "Dark Mode"}
+      </span>
+    </SidebarMenuButton>
+
+    <SidebarMenuButton
+      onClick={handleLogout} // ✅ function-kaaga sida uu yahay
+      className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 h-10 rounded-xl text-xs flex items-center"
+    >
+      <LogOut size={16} />
+      <span className="ml-2 font-bold">Logout</span>
+    </SidebarMenuButton>
+
+  </div>
+</SidebarFooter>
       </Sidebar>
 
       <main className="flex-1 p-8 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-all duration-300 overflow-y-auto">
