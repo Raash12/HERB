@@ -2,28 +2,27 @@ import { auth, db } from "../firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 export const handlePrintMedical = async (order) => {
-  // Hardcoded Support Email
-  const supportEmail = "Daahirx81@gmail.com";
+  // Hardcoded Identity Constants
+  const HARDCODED_NAME = "HORSEED WATCH AND OPTICAL";
+  const HARDCODED_EMAIL = "Daahirx81@gmail.com";
 
-  // 1. Setup a placeholder for Branch Data
+  // 1. Setup Branch Data with dynamic placeholders
   let branchInfo = {
-    name: "Loading...",
-    location: "Loading...",
-    phone: "Loading...",
-    email: supportEmail // Hardcoded
+    name: HARDCODED_NAME, // Hardcoded
+    location: "Loading...", // Dynamic
+    phone: "Loading...", // Dynamic
+    email: HARDCODED_EMAIL // Hardcoded
   };
 
-  // 2. GET LOGGED-IN USER'S BRANCH DATA
+  // 2. GET LOGGED-IN USER'S BRANCH DATA (To get dynamic Phone & Location)
   try {
     const currentUser = auth.currentUser;
     if (currentUser) {
-      // Step A: Get the user's document to find out which branch they belong to
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
       
       if (userDoc.exists()) {
         const userBranchName = userDoc.data().branch;
 
-        // Step B: Get the specific details (Phone, Location) for THAT branch
         const branchesRef = collection(db, "branches");
         const q = query(branchesRef, where("name", "==", userBranchName));
         const branchSnap = await getDocs(q);
@@ -31,10 +30,10 @@ export const handlePrintMedical = async (order) => {
         if (!branchSnap.empty) {
           const actualBranchData = branchSnap.docs[0].data();
           branchInfo = {
-            name: actualBranchData.name || userBranchName,
-            location: actualBranchData.location || "N/A",
-            phone: actualBranchData.phone || actualBranchData.telephone || "N/A",
-            email: supportEmail // Keep hardcoded even if DB has another value
+            name: HARDCODED_NAME, // Keep Hardcoded
+            location: actualBranchData.location || "Mogadishu, Somalia", // Dynamic
+            phone: actualBranchData.phone || actualBranchData.telephone || "N/A", // Dynamic
+            email: HARDCODED_EMAIL // Keep Hardcoded
           };
         }
       }
@@ -86,28 +85,28 @@ export const handlePrintMedical = async (order) => {
             display: flex; align-items: center; justify-content: space-between; 
             border-bottom: 3px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 15px; 
           }
-          .logo-box img { height: 75px; width: auto; }
+          .logo-box img { height: 65px; width: auto; }
           .header-info { text-align: right; }
-          .brand-main { font-size: 24px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
-          .contact-text { font-size: 12px; font-weight: 700; color: #334155; line-height: 1.4; }
+          .brand-main { font-size: 20px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: -0.5px; }
+          .contact-text { font-size: 11px; font-weight: 700; color: #334155; line-height: 1.4; margin-top: 2px; }
           
           .doc-type { 
-            text-align: center; margin-top: 10px; font-size: 22px; 
+            text-align: center; margin-top: 10px; font-size: 20px; 
             font-weight: 900; text-decoration: underline; font-style: italic; color: #1e3a8a;
           }
 
-          .info-table { width: 100%; margin: 20px 0; font-size: 14px; border-collapse: collapse; table-layout: fixed; }
-          .info-table td { padding: 12px 0; border-bottom: 1.5px dashed #cbd5e1; vertical-align: bottom; }
-          .label { font-weight: 800; color: #64748b; text-transform: uppercase; margin-right: 10px; }
-          .value { font-weight: 900; color: #000; font-size: 18px; text-transform: lowercase; }
+          .info-table { width: 100%; margin: 15px 0; font-size: 13px; border-collapse: collapse; }
+          .info-table td { padding: 10px 0; border-bottom: 1.5px dashed #cbd5e1; }
+          .label { font-weight: 800; color: #64748b; text-transform: uppercase; margin-right: 8px; font-size: 11px; }
+          .value { font-weight: 900; color: #000; font-size: 16px; }
 
           .med-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          .med-table th { background: #f1f5f9; padding: 10px; text-align: left; font-size: 13px; font-weight: 900; border: 2px solid #000; color: #1e3a8a; }
-          .med-table td { padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: 700; }
+          .med-table th { background: #f1f5f9; padding: 8px; text-align: left; font-size: 12px; font-weight: 900; border: 2.5px solid #000; color: #1e3a8a; text-transform: uppercase; }
+          .med-table td { padding: 10px; border: 2.5px solid #000; font-size: 16px; font-weight: 700; }
           
-          .policy { margin-top: 30px; text-align: center; font-size: 14px; font-weight: 900; border: 2px solid #000; padding: 10px; border-radius: 6px; }
+          .policy { margin-top: 25px; text-align: center; font-size: 13px; font-weight: 900; border: 2.5px solid #000; padding: 8px; border-radius: 4px; background: #fff; }
           .footer { position: absolute; bottom: 12mm; left: 12mm; right: 12mm; display: flex; justify-content: space-between; }
-          .sig { border-top: 2px solid #000; width: 42%; text-align: center; padding-top: 8px; font-size: 13px; font-weight: 900; }
+          .sig { border-top: 2.5px solid #000; width: 42%; text-align: center; padding-top: 6px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
         </style>
       </head>
       <body>
@@ -118,7 +117,7 @@ export const handlePrintMedical = async (order) => {
           <div class="header-info">
             <h1 class="brand-main">${branchInfo.name}</h1>
             <div class="contact-text">
-              Tel: ${branchInfo.phone} | Somalia <br>
+              Tel: ${branchInfo.phone} <br>
               ${branchInfo.email} <br>
               ${branchInfo.location}
             </div>
@@ -129,11 +128,11 @@ export const handlePrintMedical = async (order) => {
 
         <table class="info-table">
           <tr>
-            <td><span class="label">PATIENT:</span> <span class="value">${patientName.toLowerCase()}</span></td>
+            <td><span class="label">PATIENT:</span> <span class="value">${patientName.toUpperCase()}</span></td>
             <td><span class="label">DATE:</span> <span class="value">${currentDate}</span></td>
           </tr>
           <tr>
-            <td><span class="label">AGE/SEX:</span> <span class="value">${patientAge} Yrs / ${patientGender}</span></td>
+            <td><span class="label">AGE/SEX:</span> <span class="value">${patientAge} Y / ${patientGender}</span></td>
             <td><span class="label">LOCATION:</span> <span class="value">${patientAddress}</span></td>
           </tr>
         </table>
@@ -145,9 +144,9 @@ export const handlePrintMedical = async (order) => {
           <tbody>
             ${order.items?.map(item => `
               <tr>
-                <td style="font-size: 18px; font-weight: 900;">${item.medicineName}</td>
-                <td style="text-align: center; font-size: 18px;">x${item.quantity}</td>
-                <td><b style="font-size: 17px;">${item.dosage}</b> ${item.notes ? `<br><span style="font-size: 14px; font-weight: 400;">${item.notes}</span>` : ''}</td>
+                <td style="font-size: 17px; font-weight: 900;">${item.medicineName}</td>
+                <td style="text-align: center; font-size: 17px;">x${item.quantity}</td>
+                <td><b style="font-size: 16px;">${item.dosage}</b> ${item.notes ? `<br><span style="font-size: 13px; font-weight: 400;">${item.notes}</span>` : ''}</td>
               </tr>
             `).join('') || '<tr><td colspan="3">No medicines recorded</td></tr>'}
           </tbody>
