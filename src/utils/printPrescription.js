@@ -1,6 +1,10 @@
+import { auth, db } from "../firebase";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+
 export const handlePrintPrescription = async (order) => {
   const supportEmail = "Daahirx81@gmail.com";
 
+  // 1. SETUP BRANCH DATA (Defaults first)
   let branchInfo = {
     name: order.branchName || "HORSEED OPTICAL",
     location: order.branchLocation || "Banaadir wadada digfeer",
@@ -8,8 +12,32 @@ export const handlePrintPrescription = async (order) => {
     email: supportEmail
   };
 
-  // ... (Dynamic Fetching Logic remains the same)
+  // 2. DYNAMIC FETCH: Get Branch details based on logged-in user
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const userBranchName = userDoc.data().branch;
+        const q = query(collection(db, "branches"), where("name", "==", userBranchName));
+        const branchSnap = await getDocs(q);
+        
+        if (!branchSnap.empty) {
+          const data = branchSnap.docs[0].data();
+          branchInfo = {
+            name: data.name || userBranchName,
+            location: data.location || "N/A",
+            phone: data.phone || data.telephone || "N/A",
+            email: supportEmail // Kept hardcoded per your request
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error fetching branch info:", e);
+  }
 
+  // 3. DYNAMIC OPTIONS: Filter map for true values
   const activeOptions = order.options 
     ? Object.keys(order.options)
         .filter(key => order.options[key] === true)
@@ -17,6 +45,7 @@ export const handlePrintPrescription = async (order) => {
         .join(", ")
     : "None";
 
+  // 4. FORMATTING DATE & NAMES
   const patientName = order.patientName || "N/A";
   const dateStr = order.createdAt?.toDate 
     ? order.createdAt.toDate().toLocaleDateString('en-GB') 
@@ -25,6 +54,7 @@ export const handlePrintPrescription = async (order) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return alert("Please allow pop-ups");
 
+  // 5. THE PREMIUM HTML TEMPLATE
   const html = `
     <html>
       <head>
@@ -37,7 +67,7 @@ export const handlePrintPrescription = async (order) => {
           body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             width: 148mm; height: 210mm; padding: 12mm; 
-            color: #1e293b; /* Dark Slate for softer look than pure black */
+            color: #1e293b; 
           }
 
           .header { display: flex; justify-content: space-between; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 15px; }
@@ -51,26 +81,17 @@ export const handlePrintPrescription = async (order) => {
           .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
           .info-table td { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
           
-          /* Labels: Light and Clean */
           .label { font-weight: 500; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-          
-          /* Values: Medium weight, not super bold */
-          .value { font-weight: 600; font-size: 15px; color: #0f172a; margin-left: 5px; }
+          .value { font-weight: 600; font-size: 15px; color: #0f172a; margin-top: 2px; display: block; }
 
           .vision-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid #e2e8f0; }
           .vision-table th { background: #f8fafc; padding: 10px; font-weight: 700; font-size: 11px; color: #1e3a8a; text-transform: uppercase; border: 1px solid #e2e8f0; }
-          
-          /* Numbers in RE/LE: Clean and readable medium weight */
           .vision-table td { padding: 15px; border: 1px solid #e2e8f0; text-align: center; font-size: 20px; font-weight: 500; color: #0f172a; }
           
           .eye-side { text-align: left !important; font-size: 12px !important; font-weight: 700 !important; color: #64748b !important; padding-left: 12px !important; }
 
           .section-title { font-weight: 700; color: #1e3a8a; font-size: 12px; text-transform: uppercase; margin-bottom: 6px; display: block; }
-          
-          .data-box { 
-            margin-top: 15px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; background-color: #ffffff;
-          }
-          
+          .data-box { margin-top: 15px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; background-color: #ffffff; }
           .data-text { font-weight: 500; font-size: 14px; color: #334155; line-height: 1.5; }
 
           .footer { position: absolute; bottom: 12mm; left: 12mm; right: 12mm; display: flex; justify-content: space-between; align-items: flex-end; }
@@ -79,7 +100,7 @@ export const handlePrintPrescription = async (order) => {
       </head>
       <body>
         <div class="header">
-          <img src="/logo.png" style="height: 60px; filter: grayscale(10%)">
+          <img src="/logo.png" style="height: 60px;">
           <div style="text-align: right">
             <h1 class="brand-title">${branchInfo.name}</h1>
             <p style="font-size: 10px; font-weight: 500; color: #64748b; line-height: 1.4;">
@@ -94,12 +115,12 @@ export const handlePrintPrescription = async (order) => {
 
         <table class="info-table">
           <tr>
-            <td><span class="label">Patient</span><br><span class="value">${patientName}</span></td>
-            <td><span class="label">Date</span><br><span class="value">${dateStr}</span></td>
+            <td><span class="label">Patient</span><span class="value">${patientName}</span></td>
+            <td><span class="label">Date</span><span class="value">${dateStr}</span></td>
           </tr>
           <tr>
-            <td><span class="label">Doctor</span><br><span class="value">${order.doctorName || 'N/A'}</span></td>
-            <td><span class="label">Status</span><br><span class="value" style="color: #059669;">${order.status.toUpperCase()}</span></td>
+            <td><span class="label">Doctor</span><span class="value">${order.doctorName || 'N/A'}</span></td>
+            <td><span class="label">Status</span><span class="value" style="color: #059669;">${order.status?.toUpperCase() || 'COMPLETED'}</span></td>
           </tr>
         </table>
 
