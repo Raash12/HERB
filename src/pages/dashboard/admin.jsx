@@ -5,7 +5,6 @@ import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 
 // COMPONENTS
-// COMPONENTS
 import MedicalReport from "../../report/medicalReport"; 
 import OpticalReport from "../../report/opticalReport";
 
@@ -39,8 +38,8 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Forms
-  const [bForm, setBForm] = useState({ name: "", location: "" });
+  // Forms - ADDED phone TO bForm
+  const [bForm, setBForm] = useState({ name: "", location: "", phone: "" });
   const [uForm, setUForm] = useState({ fullName: "", email: "", password: "", role: "doctor", branch: "", active: true });
   const [sForm, setSForm] = useState({ medicineName: "", quantity: "", price: "", branchId: "" });
   const [passForm, setPassForm] = useState({ current: "", new: "", repeat: "" });
@@ -129,7 +128,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       editBranchId ? await updateDoc(doc(db, "branches", editBranchId), bForm) : await addDoc(collection(db, "branches"), bForm);
-      setBForm({ name: "", location: "" }); setEditBranchId(null); setShowBranchModal(false); fetchData();
+      setBForm({ name: "", location: "", phone: "" }); setEditBranchId(null); setShowBranchModal(false); fetchData();
     } catch (err) { alert(err.message); } finally { setLoading(false); }
   };
 
@@ -194,7 +193,6 @@ export default function AdminDashboard() {
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-            {/* --- REPORTS SECTION --- */}
             <div className="px-6 mt-6 mb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               Analytics & Reports
             </div>
@@ -301,7 +299,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* REPORTS VIEWS */}
           {activeView === "medical_report" && (
             <div className="animate-in fade-in">
               <MedicalReport />
@@ -389,6 +386,7 @@ export default function AdminDashboard() {
                   <TableHeader className="bg-blue-600/5">
                     <TableRow className="hover:bg-transparent">
                       <TableCell className="font-bold py-4 pl-6 uppercase text-[10px] text-blue-600">Name</TableCell>
+                      {activeView === "branches" && <TableCell className="font-bold uppercase text-[10px] text-blue-600">Phone</TableCell>}
                       <TableCell className="font-bold uppercase text-[10px] text-blue-600">{activeView === "branches" ? "Location" : "Role"}</TableCell>
                       <TableCell className="font-bold text-right pr-6 uppercase text-[10px] text-blue-600">Actions</TableCell>
                     </TableRow>
@@ -397,6 +395,7 @@ export default function AdminDashboard() {
                     {paginatedData.map((item) => (
                       <TableRow key={item.id} className="border-slate-50 dark:border-slate-800">
                         <TableCell className="py-4 pl-6 font-bold">{item.fullName || item.name}</TableCell>
+                        {activeView === "branches" && <TableCell className="text-blue-600 font-bold">{item.phone || "---"}</TableCell>}
                         <TableCell className="text-xs font-bold text-slate-500 uppercase">{item.location || item.role}</TableCell>
                         <TableCell className="text-right pr-6">
                           <Button variant="ghost" size="sm" className="text-blue-600 font-bold" onClick={() => {
@@ -444,6 +443,7 @@ export default function AdminDashboard() {
                 {activeView === "branches" ? (
                   <>
                     <Input placeholder="Branch Name" value={bForm.name} onChange={e => setBForm({...bForm, name: e.target.value})} className="h-12 rounded-xl" />
+                    <Input placeholder="Telephone" value={bForm.phone} onChange={e => setBForm({...bForm, phone: e.target.value})} className="h-12 rounded-xl" />
                     <Input placeholder="Location" value={bForm.location} onChange={e => setBForm({...bForm, location: e.target.value})} className="h-12 rounded-xl" />
                     <Button onClick={handleAddBranch} className="w-full bg-blue-600 h-12 rounded-xl font-bold uppercase tracking-widest">Save Branch</Button>
                   </>

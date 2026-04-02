@@ -1,8 +1,46 @@
-import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 export const handlePrintMedical = async (order) => {
-  // 1. Soo aqri xogta bukaanka haddii uu leeyahay patientId
+  // 1. Setup a placeholder for Branch Data
+  let branchInfo = {
+    name: "Loading...",
+    location: "Loading...",
+    phone: "Loading...",
+    email: ""
+  };
+
+  // 2. GET LOGGED-IN USER'S BRANCH DATA
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      // Step A: Get the user's document to find out which branch they belong to
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      
+      if (userDoc.exists()) {
+        const userBranchName = userDoc.data().branch; // e.g., "Horsed" or "KM4"
+
+        // Step B: Get the specific details (Phone, Location) for THAT branch
+        const branchesRef = collection(db, "branches");
+        const q = query(branchesRef, where("name", "==", userBranchName));
+        const branchSnap = await getDocs(q);
+
+        if (!branchSnap.empty) {
+          const actualBranchData = branchSnap.docs[0].data();
+          branchInfo = {
+            name: actualBranchData.name || userBranchName,
+            location: actualBranchData.location || "N/A",
+            phone: actualBranchData.phone || actualBranchData.telephone || "N/A",
+            email: actualBranchData.email || ""
+          };
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching dynamic branch info:", error);
+  }
+
+  // 3. Fetch Patient Data
   let patientData = {};
   if (order.patientId) {
     try {
@@ -16,17 +54,11 @@ export const handlePrintMedical = async (order) => {
     }
   }
 
-  // 2. Diyaarinta xogta la daabacayo
+  // 4. Data Formatting
   const patientName = patientData.fullName || order.patientName || order.fullName || "N/A";
   const patientAge = patientData.age || order.age || "N/A";
   const patientGender = patientData.gender || order.gender || "N/A";
   const patientAddress = patientData.address || order.address || "N/A";
-
-  const branchName = order.branchName || "HORSEED EYE & E.N.T";
-  const branchLocation = order.branchLocation || "Banaadir wadada digfeer";
-  const branchPhone = order.branchPhone || "615994202";
-  const branchEmail = order.branchEmail || "Daahirx81@gmail.com";
-
   const currentDate = new Date().toLocaleDateString('en-GB');
 
   const printWindow = window.open("", "_blank");
@@ -39,7 +71,7 @@ export const handlePrintMedical = async (order) => {
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
           @page { size: A5; margin: 0; }
-          * { margin: 0; padding: 0; box-sizing: border-box; color: #000; } /* Midabka guud waa Madow */
+          * { margin: 0; padding: 0; box-sizing: border-box; color: #000; }
           
           body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -61,10 +93,10 @@ export const handlePrintMedical = async (order) => {
             font-weight: 900; text-decoration: underline; font-style: italic; color: #1e3a8a;
           }
 
-          .info-table { width: 100%; margin: 20px 0; font-size: 14px; border-collapse: collapse; }
-          .info-table td { padding: 10px 0; border-bottom: 1.5px dashed #cbd5e1; }
-          .label { font-weight: 800; color: #64748b; text-transform: uppercase; width: 100px; display: inline-block; }
-          .value { font-weight: 900; color: #000; font-size: 18px; }
+          .info-table { width: 100%; margin: 20px 0; font-size: 14px; border-collapse: collapse; table-layout: fixed; }
+          .info-table td { padding: 12px 0; border-bottom: 1.5px dashed #cbd5e1; vertical-align: bottom; }
+          .label { font-weight: 800; color: #64748b; text-transform: uppercase; margin-right: 10px; }
+          .value { font-weight: 900; color: #000; font-size: 18px; text-transform: lowercase; }
 
           .med-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
           .med-table th { background: #f1f5f9; padding: 10px; text-align: left; font-size: 13px; font-weight: 900; border: 2px solid #000; color: #1e3a8a; }
@@ -81,11 +113,11 @@ export const handlePrintMedical = async (order) => {
             <img src="/logo.png" alt="Logo">
           </div>
           <div class="header-info">
-            <h1 class="brand-main">${branchName}</h1>
+            <h1 class="brand-main">${branchInfo.name}</h1>
             <div class="contact-text">
-              Tel: ${branchPhone} | Somalia <br>
-              ${branchEmail} <br>
-              ${branchLocation}
+              Tel: ${branchInfo.phone} | Somalia <br>
+              ${branchInfo.email} <br>
+              ${branchInfo.location}
             </div>
           </div>
         </div>
@@ -94,12 +126,12 @@ export const handlePrintMedical = async (order) => {
 
         <table class="info-table">
           <tr>
-            <td><span class="label">Patient:</span> <span class="value">${patientName}</span></td>
-            <td><span class="label">Date:</span> <span class="value">${currentDate}</span></td>
+            <td><span class="label">PATIENT:</span> <span class="value">${patientName.toLowerCase()}</span></td>
+            <td><span class="label">DATE:</span> <span class="value">${currentDate}</span></td>
           </tr>
           <tr>
-            <td><span class="label">Age/Sex:</span> <span class="value">${patientAge} Yrs / ${patientGender}</span></td>
-            <td><span class="label">Location:</span> <span class="value">${patientAddress}</span></td>
+            <td><span class="label">AGE/SEX:</span> <span class="value">${patientAge} Yrs / ${patientGender}</span></td>
+            <td><span class="label">LOCATION:</span> <span class="value">${patientAddress}</span></td>
           </tr>
         </table>
 

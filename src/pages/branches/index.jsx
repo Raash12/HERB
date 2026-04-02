@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   // Form States
   const [branchName, setBranchName] = useState("");
   const [location, setLocation] = useState("");
+  const [branchPhone, setBranchPhone] = useState(""); // ADDED
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,9 +42,9 @@ export default function AdminDashboard() {
 
   // Handlers
   const handleAddBranch = async () => {
-    if (!branchName || !location) return alert("Fill all fields");
-    await addDoc(collection(db, "branches"), { name: branchName, location });
-    setBranchName(""); setLocation("");
+    if (!branchName || !location || !branchPhone) return alert("Fill all fields including Phone");
+    await addDoc(collection(db, "branches"), { name: branchName, location, phone: branchPhone });
+    setBranchName(""); setLocation(""); setBranchPhone("");
     fetchData();
     setView("list-branches");
   };
@@ -120,9 +121,9 @@ export default function AdminDashboard() {
             <>
               <h2 className="text-xl font-bold mb-4">Branch List</h2>
               <Table>
-                <TableHeader><TableRow><TableCell>Name</TableCell><TableCell>Location</TableCell></TableRow></TableHeader>
+                <TableHeader><TableRow><TableCell>Name</TableCell><TableCell>Phone</TableCell><TableCell>Location</TableCell></TableRow></TableHeader>
                 <TableBody>
-                  {paginatedData.map(b => <TableRow key={b.id}><TableCell>{b.name}</TableCell><TableCell>{b.location}</TableCell></TableRow>)}
+                  {paginatedData.map(b => <TableRow key={b.id}><TableCell className="font-bold">{b.name}</TableCell><TableCell>{b.phone || "N/A"}</TableCell><TableCell>{b.location}</TableCell></TableRow>)}
                 </TableBody>
               </Table>
               <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
@@ -146,6 +147,7 @@ export default function AdminDashboard() {
             <div className="max-w-md space-y-4">
               <h2 className="text-xl font-bold">Create New Branch</h2>
               <Input placeholder="Branch Name" value={branchName} onChange={e => setBranchName(e.target.value)} />
+              <Input placeholder="Telephone" value={branchPhone} onChange={e => setBranchPhone(e.target.value)} />
               <Input placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} />
               <Button onClick={handleAddBranch} className="w-full">Save Branch</Button>
             </div>
