@@ -2,12 +2,15 @@ import { auth, db } from "../firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 export const handlePrintMedical = async (order) => {
+  // Hardcoded Support Email
+  const supportEmail = "Daahirx81@gmail.com";
+
   // 1. Setup a placeholder for Branch Data
   let branchInfo = {
     name: "Loading...",
     location: "Loading...",
     phone: "Loading...",
-    email: ""
+    email: supportEmail // Hardcoded
   };
 
   // 2. GET LOGGED-IN USER'S BRANCH DATA
@@ -18,7 +21,7 @@ export const handlePrintMedical = async (order) => {
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
       
       if (userDoc.exists()) {
-        const userBranchName = userDoc.data().branch; // e.g., "Horsed" or "KM4"
+        const userBranchName = userDoc.data().branch;
 
         // Step B: Get the specific details (Phone, Location) for THAT branch
         const branchesRef = collection(db, "branches");
@@ -31,7 +34,7 @@ export const handlePrintMedical = async (order) => {
             name: actualBranchData.name || userBranchName,
             location: actualBranchData.location || "N/A",
             phone: actualBranchData.phone || actualBranchData.telephone || "N/A",
-            email: actualBranchData.email || ""
+            email: supportEmail // Keep hardcoded even if DB has another value
           };
         }
       }
