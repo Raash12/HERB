@@ -12,10 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 
 // Icons
-import { Loader2, Search, Pill, Trash2, Glasses, PlusCircle, Eye, User, Stethoscope } from "lucide-react";
+import { Loader2, Search, Pill, Trash2, Glasses } from "lucide-react";
 
 export default function DoctorAppointments() {
   const [visits, setVisits] = useState([]);
@@ -25,11 +24,17 @@ export default function DoctorAppointments() {
   const [selectedReception, setSelectedReception] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // --- OPTICAL STATES ---
+  // --- OPTICAL STATES (Updated for Distance & Near) ---
   const [ipd, setIpd] = useState("");
   const [values, setValues] = useState({
-    RE: { distance: { sph: "", cyl: "", axis: "", va: "" }, read: { sph: "", va: "" } },
-    LE: { distance: { sph: "", cyl: "", axis: "", va: "" }, read: { sph: "", va: "" } },
+    RE: {
+      distance: { sph: "", cyl: "", axis: "", va: "" },
+      near: { sph: "", cyl: "", axis: "", va: "" }
+    },
+    LE: {
+      distance: { sph: "", cyl: "", axis: "", va: "" },
+      near: { sph: "", cyl: "", axis: "", va: "" }
+    },
   });
   const [options, setOptions] = useState({
     distance: false, near: false, bifocal: false, progressive: false,
@@ -60,8 +65,14 @@ export default function DoctorAppointments() {
     setSelectedReception("");
     setIpd("");
     setValues({
-      RE: { distance: { sph: "", cyl: "", axis: "", va: "" }, read: { sph: "", va: "" } },
-      LE: { distance: { sph: "", cyl: "", axis: "", va: "" }, read: { sph: "", va: "" } },
+      RE: {
+        distance: { sph: "", cyl: "", axis: "", va: "" },
+        near: { sph: "", cyl: "", axis: "", va: "" }
+      },
+      LE: {
+        distance: { sph: "", cyl: "", axis: "", va: "" },
+        near: { sph: "", cyl: "", axis: "", va: "" }
+      },
     });
   };
 
@@ -97,7 +108,6 @@ export default function DoctorAppointments() {
         createdAt: serverTimestamp(),
       });
       
-      // KALIYA Optical-ka ayaan xireynaa (Lock)
       await updateDoc(doc(db, "visits", visit.id), { 
         opticalSent: true,
         status: visit.medsSent ? "completed" : "processing" 
@@ -126,7 +136,6 @@ export default function DoctorAppointments() {
         createdAt: serverTimestamp(),
       });
 
-      // KALIYA Medical-ka ayaan xireynaa (Lock)
       await updateDoc(doc(db, "visits", visit.id), { 
         medsSent: true,
         status: visit.opticalSent ? "completed" : "processing"
@@ -183,16 +192,14 @@ export default function DoctorAppointments() {
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        disabled={v.opticalSent} // Kaliya hadii optical la diray ayuu xirmayaa
+                        variant="ghost" size="sm" disabled={v.opticalSent}
                         className="rounded-xl font-black uppercase text-[10px] text-blue-600 border border-blue-100 hover:bg-blue-600 hover:text-white" 
                         onClick={() => handleOpenOptical(v)}
                       >
                         <Glasses size={14} className="mr-2" /> {v.opticalSent ? "Optical Sent" : "Optical"}
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[900px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+                    <DialogContent className="sm:max-w-[950px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
                       <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
                         <h2 className="text-xl font-black uppercase flex items-center gap-2"><Glasses /> Optical Prescription</h2>
                         <p className="text-xs font-bold opacity-80">{v.patientName}</p>
@@ -212,44 +219,47 @@ export default function DoctorAppointments() {
                           </div>
                         </div>
 
+                        {/* --- EYES GRID (RE and LE) --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {['RE', 'LE'].map((eye) => (
-                            <div key={eye} className="p-5 bg-blue-50/50 rounded-[2rem] border border-blue-100">
-                              <h3 className="font-black text-blue-600 mb-4 text-xs uppercase flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-blue-600" /> {eye === 'RE' ? 'Right Eye (RE)' : 'Left Eye (LE)'}
+                            <div key={eye} className="p-6 bg-blue-50/50 rounded-[2.5rem] border border-blue-100">
+                              <h3 className="font-black text-blue-600 mb-6 text-xs uppercase flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-blue-600" /> 
+                                {eye === 'RE' ? 'Right Eye (RE)' : 'Left Eye (LE)'}
                               </h3>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-1">Distance</p>
-                                  {['sph', 'cyl', 'axis', 'va'].map((f) => (
-                                    <div key={f} className="flex items-center justify-between">
-                                      <label className="text-[9px] font-black uppercase text-slate-500">{f}</label>
-                                      <Input className="h-8 w-20 text-center font-bold rounded-lg border-none bg-white shadow-sm" value={values[eye].distance[f]} onChange={(e) => setValues({...values, [eye]: {...values[eye], distance: {...values[eye].distance, [f]: e.target.value}}})} />
-                                    </div>
-                                  ))}
+                              
+                              {['distance', 'near'].map((type) => (
+                                <div key={type} className="mb-6 last:mb-0">
+                                  <p className="text-[9px] font-black uppercase text-blue-400 mb-3 ml-1 tracking-widest">{type} vision</p>
+                                  <div className="grid grid-cols-4 gap-2">
+                                    {['sph', 'cyl', 'axis', 'va'].map((f) => (
+                                      <div key={f} className="bg-white p-2 rounded-xl shadow-sm border border-blue-50">
+                                        <label className="text-[8px] font-black uppercase text-slate-400 block mb-1 text-center">{f}</label>
+                                        <Input 
+                                          className="h-8 w-full text-center font-black text-blue-600 border-none bg-slate-50 rounded-lg text-[11px]" 
+                                          value={values[eye][type][f]} 
+                                          onChange={(e) => {
+                                            const newValues = { ...values };
+                                            newValues[eye][type][f] = e.target.value;
+                                            setValues(newValues);
+                                          }} 
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-1">Read (Near)</p>
-                                  {['sph', 'va'].map((f) => (
-                                    <div key={f} className="flex items-center justify-between">
-                                      <label className="text-[9px] font-black uppercase text-slate-500">{f}</label>
-                                      <Input className="h-8 w-20 text-center font-bold rounded-lg border-none bg-white shadow-sm" value={values[eye].read[f]} onChange={(e) => setValues({...values, [eye]: {...values[eye], read: {...values[eye].read, [f]: e.target.value}}})} />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                              ))}
                             </div>
                           ))}
                         </div>
 
                         <div className="space-y-3">
                           <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1">Lens Options</p>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {Object.keys(options).map((opt) => (
                               <div key={opt} className="flex items-center space-x-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:bg-blue-50 transition-colors">
                                 <Checkbox 
-                                  id={`${v.id}-${opt}`} 
-                                  checked={options[opt]} 
+                                  id={`${v.id}-${opt}`} checked={options[opt]} 
                                   onCheckedChange={(val) => setOptions({...options, [opt]: !!val})} 
                                 />
                                 <label htmlFor={`${v.id}-${opt}`} className="text-[9px] font-bold uppercase text-slate-600 cursor-pointer leading-none">
@@ -271,9 +281,7 @@ export default function DoctorAppointments() {
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        disabled={v.medsSent} // Kaliya hadii meds la diray ayuu xirmayaa
+                        variant="ghost" size="sm" disabled={v.medsSent}
                         className="rounded-xl font-black uppercase text-[10px] text-blue-600 border border-blue-100 hover:bg-blue-600 hover:text-white" 
                         onClick={() => handleOpenMeds(v)}
                       >
@@ -312,7 +320,7 @@ export default function DoctorAppointments() {
                           </div>
                         ))}
                         <Button variant="outline" className="w-full border-dashed border-2 h-11 uppercase text-[10px] font-black rounded-xl" onClick={() => setPrescribedItems([...prescribedItems, { medicineId: "", medicineName: "", quantity: 1, dosage: "" }])}>+ Add Medicine</Button>
-                        <Button disabled={actionLoading} className="w-full h-14 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-xl shadow-blue-100" onClick={() => handleSendMedical(v)}>
+                        <Button disabled={actionLoading} className="w-full h-14 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-xl" onClick={() => handleSendMedical(v)}>
                           {actionLoading ? <Loader2 className="animate-spin" /> : "Dispatch Medical Prescription"}
                         </Button>
                       </div>
