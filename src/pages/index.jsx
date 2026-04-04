@@ -1,36 +1,20 @@
-// src/pages/index.jsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
-import { findUserByEmailOrName } from "../utils/auth"; // must query Firestore for user by email or fullName
+import { findUserByEmailOrName } from "../utils/auth";
+
+// UI Components
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState(""); // email OR full name
+  const [identifier, setIdentifier] = useState(""); // Email or Full Name
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [dark, setDark] = useState(false);
-
-  // Load dark mode from localStorage
-  useEffect(() => {
-    if (localStorage.getItem("darkMode") === "true") {
-      setDark(true);
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
-
-  const toggleDark = (value) => {
-    setDark(value);
-    localStorage.setItem("darkMode", value);
-    document.documentElement.classList.toggle("dark", value);
-  };
 
   const handleLogin = async () => {
     setMessage("Logging in...");
@@ -40,18 +24,18 @@ export default function Login() {
       const userData = await findUserByEmailOrName(identifier);
       if (!userData) throw new Error("User not found");
 
-      // ✅ Check if user is active
+      // Check if user is active
       if (userData.active === false) {
         throw new Error("This account is inactive. Contact admin.");
       }
 
-      // Sign in with Firebase Auth using email
+      // Firebase Auth login
       await signInWithEmailAndPassword(auth, userData.email, password);
 
       setMessage(`Login successful! Role: ${userData.role}`);
       setIsError(false);
 
-      // Navigate to the user's dashboard
+      // Navigate to dashboard
       navigate(`/dashboard/${userData.role}`);
     } catch (err) {
       setMessage(err.message);
@@ -60,43 +44,61 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-6 transition-colors">
-      <Card className="w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl rounded-2xl">
-        <CardContent className="space-y-4">
-          <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
-            Login
-          </h1>
-          <Badge className="bg-blue-500 text-white">UI Working</Badge>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+      <Card className="w-full max-w-md shadow-xl rounded-2xl border border-gray-200">
+        <CardContent className="space-y-6 p-6">
+
+          {/* Logo */}
+          <div className="flex justify-center">
+            <img
+              src="/logo.png"
+              alt="Horsed Logo"
+              className="w-24 h-24 object-contain"
+            />
+          </div>
+
+          {/* Title */}
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Horsed Management System
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Please login to continue
+            </p>
+          </div>
 
           {/* Inputs */}
-          <Input
-            placeholder="Email or Full Name"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            className="bg-white dark:bg-gray-700 dark:text-white"
-          />
-          <Input
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="bg-white dark:bg-gray-700 dark:text-white"
-          />
-
-          {/* Dark Mode */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-gray-700 dark:text-gray-300">Dark</span>
-            <Switch checked={dark} onCheckedChange={toggleDark} />
+          <div className="space-y-4">
+            <Input
+              placeholder="Email or Full Name"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              className="bg-white"
+            />
+            <Input
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-white"
+            />
           </div>
 
           {/* Login Button */}
-          <Button className="w-full mt-2" onClick={handleLogin}>
+          <Button
+            className="w-full mt-2 text-base font-semibold"
+            onClick={handleLogin}
+          >
             Login
           </Button>
 
           {/* Message */}
           {message && (
-            <p className={`text-center mt-2 ${isError ? "text-red-500" : "text-green-500"}`}>
+            <p
+              className={`text-center text-sm mt-2 ${
+                isError ? "text-red-500" : "text-green-600"
+              }`}
+            >
               {message}
             </p>
           )}

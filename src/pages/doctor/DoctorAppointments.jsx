@@ -40,6 +40,7 @@ export default function DoctorAppointments() {
     distance: false, near: false, bifocal: false, progressive: false,
     singleVision: false, photoBrown: false, photoGrey: false, white: false,
     sunglasses: false, blueCut: false, highIndex: false, plasticCr39: false,
+    contactlenses: false, crookesB1: false, crookesB2: false,  halfEye: false, kaPto: false,
   });
 
   // --- MEDICAL STATES ---
