@@ -62,6 +62,7 @@ export default function ReceptionDashboard() {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
+    // 1. PATIENTS STATS LISTENER
     const unsubPatients = onSnapshot(collection(db, "patients"), (snap) => {
       const docs = snap.docs.map(d => d.data());
       setStats({
@@ -70,6 +71,7 @@ export default function ReceptionDashboard() {
       });
     });
 
+    // 2. OPTICAL LISTENER
     const unsubOpt = onSnapshot(query(collection(db, "prescriptions"), where("sendTo", "==", currentUser.uid)), async (snap) => {
       const optData = await Promise.all(snap.docs.map(async (d) => {
         const data = d.data();
@@ -86,12 +88,27 @@ export default function ReceptionDashboard() {
       });
     });
 
-    const unsubMed = onSnapshot(query(collection(db, "medical_prescriptions"), where("sendTo", "==", currentUser.uid)), (snap) => {
-      const medData = snap.docs.map(d => ({ 
-        id: d.id, 
-        ...d.data(), 
-        category: 'medical',
-        displayName: d.data().patientInfo?.name || d.data().patientInfo?.fullName || "Unnamed Medical"
+    // 3. MEDICAL LISTENER (FIXED: Added Name Fetching)
+    const unsubMed = onSnapshot(query(collection(db, "medical_prescriptions"), where("sendTo", "==", currentUser.uid)), async (snap) => {
+      const medData = await Promise.all(snap.docs.map(async (d) => {
+        const data = d.data();
+        
+        // Priority 1: Check patientInfo (common in medical records)
+        // Priority 2: Check standard patientName field
+        let name = data.patientInfo?.name || data.patientInfo?.fullName || data.patientName || "Unnamed Medical";
+        
+        // Priority 3: Fetch from 'patients' collection if name is still generic
+        if (name.includes("Unnamed") && data.patientId) {
+          const pDoc = await getDoc(doc(db, "patients", data.patientId));
+          if (pDoc.exists()) name = pDoc.data().fullName || pDoc.data().name;
+        }
+
+        return { 
+          id: d.id, 
+          ...data, 
+          category: 'medical', 
+          displayName: name 
+        };
       }));
 
       setPrescriptions(prev => {
@@ -226,7 +243,6 @@ export default function ReceptionDashboard() {
             </div>
           )}
 
-          {/* UPDATED SECURITY VIEW STYLE */}
           {activeView === "settings" && (
             <div className="max-w-md mx-auto space-y-6 animate-in slide-in-from-bottom-4 mt-10">
               <div className="text-center">

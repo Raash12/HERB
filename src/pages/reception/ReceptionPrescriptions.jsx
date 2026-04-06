@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../../firebase"; 
+import { db, auth } from "../../firebase"; 
 import { 
   doc, writeBatch, increment, deleteDoc, getDoc, 
-  serverTimestamp 
+  serverTimestamp, collection, query, where, getDocs 
 } from "firebase/firestore";
 
 // UI Components
@@ -40,9 +40,10 @@ export default function ReceptionPrescriptions({ data }) {
     if (data.length > 0) fetchPatientNames();
   }, [data]);
 
-  // 2. Confirm Logic with stock adjustment
+  // 2. Confirm Logic with stock adjustment and Status "paid" fix
   const handleConfirmDispense = async (order) => {
-    const msg = order.category === 'medical' 
+    const isMedical = order.category === 'medical';
+    const msg = isMedical 
       ? "Ma hubtaa inaad bixisay? Stock-ga iyo Qiimaha ayaa laga jaranayaa."
       : "Ma hubtaa inaad bixisay?";
 
@@ -53,7 +54,7 @@ export default function ReceptionPrescriptions({ data }) {
     try {
       const pName = patientNames[order.patientId] || order.displayName || order.patientName || "Unnamed Patient";
 
-      if (order.category === 'medical' && order.items) {
+      if (isMedical && order.items) {
         for (const item of order.items) {
           if (item.medicineId) {
             const medRef = doc(db, "branch_medicines", item.medicineId);
@@ -82,11 +83,13 @@ export default function ReceptionPrescriptions({ data }) {
         }
       }
 
-      const collectionName = order.category === 'medical' ? "medical_prescriptions" : "prescriptions";
+      const collectionName = isMedical ? "medical_prescriptions" : "prescriptions";
       const presRef = doc(db, collectionName, order.id);
       
+      // ✅ UPDATED: If medical, status becomes "paid". Otherwise "completed".
       batch.update(presRef, { 
-        status: "completed", 
+        status: isMedical ? "paid" : "completed", 
+        paid: true, 
         dispensedAt: serverTimestamp(),
         patientNameReport: pName 
       });
@@ -159,7 +162,7 @@ export default function ReceptionPrescriptions({ data }) {
                           {patientNames[order.patientId] || order.displayName || order.patientName || "Loading..."}
                         </div>
                         <div className="text-[9px] text-slate-400 font-bold font-mono uppercase">
-                          ID: {order.patientId?.slice(-6)}
+                          ID: {order.patientId?.slice(-6).toUpperCase()}
                         </div>
                       </div>
                     </div>
@@ -170,10 +173,14 @@ export default function ReceptionPrescriptions({ data }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    {/* Status Display: PAID for Medical, COMPLETE for others */}
-                    <Badge className={`rounded-lg uppercase text-[9px] font-black px-3 py-1 ${order.status === 'completed' ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white'}`}>
-                      {order.status === 'completed' 
-                        ? (order.category === 'medical' ? 'PAID' : 'COMPLETE') 
+                    <Badge 
+                      className={`rounded-lg uppercase text-[9px] font-black px-3 py-1 ${
+                        (order.status === 'paid' || order.status === 'completed') ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white'
+                      }`}
+                    >
+                      {/* UI Logic: If status is 'paid', or if it's medical and 'completed', show PAID */}
+                      {order.status === 'paid' || (order.category === 'medical' && order.status === 'completed')
+                        ? 'PAID' 
                         : (order.status || 'Pending')
                       }
                     </Badge>
@@ -189,7 +196,7 @@ export default function ReceptionPrescriptions({ data }) {
                           <ReceiptText size={14} /> Print POS
                         </Button>
                       )}
-                      {order.status !== 'completed' && (
+                      {(order.status !== 'completed' && order.status !== 'paid') && (
                         <button 
                           onClick={() => handleConfirmDispense(order)} 
                           className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 h-8 rounded-lg font-black uppercase text-[9px] flex items-center gap-1 shadow-sm"

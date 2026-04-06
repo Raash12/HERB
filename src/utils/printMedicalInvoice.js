@@ -20,8 +20,11 @@ export const handlePrintMedicalInvoice = async (order) => {
     doctor: order.doctorName || "General"
   };
 
+  let itemsWithLivePrices = [];
+  let grandTotal = 0;
+
   try {
-    // 1. Soo qaado xogta bukaanka (Age, Gender) haddii ay dhiman tahay
+    // 1. Fetch Patient Info
     if (order.patientId) {
       const pDoc = await getDoc(doc(db, "patients", order.patientId));
       if (pDoc.exists()) {
@@ -32,7 +35,7 @@ export const handlePrintMedicalInvoice = async (order) => {
       }
     }
 
-    // 2. Soo qaado xogta Branch-ka
+    // 2. Fetch Branch Info
     const currentUser = auth.currentUser;
     if (currentUser) {
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -47,13 +50,34 @@ export const handlePrintMedicalInvoice = async (order) => {
         }
       }
     }
-  } catch (error) {
-    console.error("Error fetching patient/branch data:", error);
-  }
 
-  const totalAmount = order.items?.reduce((sum, item) => 
-    sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0
-  ) || 0;
+    // 3. Fetch Live Prices
+    if (order.items && order.items.length > 0) {
+      for (const item of order.items) {
+        let livePrice = 0;
+        if (item.medicineId) {
+          const medRef = doc(db, "branch_medicines", item.medicineId);
+          const medSnap = await getDoc(medRef);
+          if (medSnap.exists()) {
+            const medData = medSnap.data();
+            const currentQty = Number(medData.quantity || 1);
+            const currentTotalVal = Number(medData.price || 0);
+            livePrice = currentTotalVal / (currentQty || 1);
+          }
+        }
+        const qty = Number(item.quantity || 1);
+        const subtotal = livePrice * qty;
+        grandTotal += subtotal;
+        itemsWithLivePrices.push({
+          ...item,
+          unitPrice: livePrice,
+          subtotal: subtotal
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching data:", error);
+  }
 
   const dateStr = new Date().toLocaleString('en-GB', { 
     day: '2-digit', month: '2-digit', year: 'numeric', 
@@ -61,7 +85,7 @@ export const handlePrintMedicalInvoice = async (order) => {
   });
 
   const printWindow = window.open("", "_blank");
-  if (!printWindow) return alert("Fadlan ogolow Pop-ups (Allow Pop-ups)");
+  if (!printWindow) return alert("Fadlan ogolow Pop-ups");
 
   const htmlContent = `
     <html>
@@ -87,7 +111,6 @@ export const handlePrintMedicalInvoice = async (order) => {
           .contact-info { font-size: 9.5px; color: #475569; margin-top: 5px; }
           .receipt-title { background: #0b3b5f; color: white; padding: 8px 4px; margin: 15px 0; font-size: 13px; font-weight: 700; text-align: center; border-radius: 6px; }
           
-          /* Patient Info Table */
           .info-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 10px; }
           .info-table td { padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
           .label { font-weight: 700; color: #64748b; width: 35%; }
@@ -95,6 +118,8 @@ export const handlePrintMedicalInvoice = async (order) => {
           .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           .items-table th { text-align: left; border-bottom: 1.5px solid #0b3b5f; padding: 5px 0; font-size: 10px; color: #0b3b5f; }
           .items-table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+          
+          .unit-text { font-size: 10px; color: #1e2a3a; font-weight: 600; }
 
           .total-box { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 12px; background: #f1f5f9; border-left: 5px solid #0b3b5f; border-radius: 12px; }
           .amount-big { font-size: 22px; font-weight: 900; color: #0b3b5f; }
@@ -125,25 +150,39 @@ export const handlePrintMedicalInvoice = async (order) => {
         <table class="items-table">
           <thead>
             <tr>
-              <th>Medicine</th>
+              <th>Medicine Description</th>
               <th style="text-align: center;">Qty</th>
-              <th style="text-align: right;">Price</th>
+              <th style="text-align: right;">Unit Price</th>
+              <th style="text-align: right;">Total</th>
             </tr>
           </thead>
           <tbody>
-            ${order.items?.map(item => `
-              <tr>
-                <td class="bold uppercase" style="font-size: 9px;">${item.medicineName}</td>
-                <td style="text-align: center;">${item.quantity}</td>
-                <td style="text-align: right;">$${Number(item.price).toFixed(2)}</td>
-              </tr>
-            `).join('')}
+            ${itemsWithLivePrices.map(item => {
+              const unitPrice = Number(item.unitPrice || 0).toFixed(2);
+              const subtotal = Number(item.subtotal || 0).toFixed(2);
+              return `
+                <tr>
+                  <td class="bold uppercase" style="font-size: 9px; padding-top: 10px;">
+                    ${item.medicineName}
+                  </td>
+                  <td style="text-align: center; vertical-align: bottom;">
+                    ${item.quantity}
+                  </td>
+                  <td style="text-align: right; vertical-align: bottom;" class="unit-text">
+                    1 x ${unitPrice}
+                  </td>
+                  <td style="text-align: right; vertical-align: bottom;" class="bold">
+                    $${subtotal}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
 
         <div class="total-box">
           <span class="bold uppercase">Total Paid</span>
-          <span class="amount-big">$${totalAmount.toFixed(2)}</span>
+          <span class="amount-big">$${grandTotal.toFixed(2)}</span>
         </div>
 
         <div class="footer">
