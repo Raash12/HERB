@@ -63,49 +63,51 @@ export const handlePrintMedical = async (order) => {
         <title>Rx Medical - ${patientName}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
-          @page { size: A5 portrait; margin: 8mm; }
+          @page { size: A5 portrait; margin: 5mm; }
           
           * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-          body { width: 148mm; height: 210mm; padding: 10mm; background: #fff; color: #000; display: flex; flex-direction: column; }
+          body { width: 148mm; height: 210mm; padding: 8mm; background: #fff; color: #000; display: flex; flex-direction: column; }
 
-          /* Premium Header */
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3.5px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 20px; }
-          .logo-box { display: flex; align-items: center; gap: 12px; }
-          .logo-img { height: 60px; width: auto; object-fit: contain; }
-          .brand-name { font-weight: 900; font-size: 19px; color: #1e3a8a; text-transform: uppercase; line-height: 1.1; }
-          .contact-details { font-size: 10px; text-align: right; font-weight: 700; color: #1e293b; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 12px; }
+          .logo-box { display: flex; align-items: center; gap: 10px; }
+          .brand-name { font-weight: 900; font-size: 17px; color: #1e3a8a; text-transform: uppercase; }
+          .contact-details { font-size: 9px; text-align: right; font-weight: 700; color: #1e293b; line-height: 1.3; }
 
-          .doc-title { text-align: center; font-size: 18px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 2px; }
+          .doc-title { text-align: center; font-size: 16px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
 
-          /* Patient Info */
-          .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 15px; }
-          .info-item { display: flex; flex-direction: column; gap: 2px; }
-          .label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; }
-          .val { font-size: 14px; font-weight: 700; color: #0f172a; }
+          .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px; }
+          .info-item { display: flex; flex-direction: column; }
+          .label { font-size: 8px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+          .val { font-size: 13px; font-weight: 700; color: #0f172a; }
 
-          /* Professional 3-Column Table */
-          .med-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          .med-table th { background: #1e3a8a; color: #fff; padding: 10px; font-size: 10px; text-transform: uppercase; text-align: left; border: 1.5px solid #1e3a8a; }
-          .med-table td { padding: 12px 10px; border: 1.5px solid #e2e8f0; vertical-align: middle; }
+          /* Findings Space Optimized */
+          .findings-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+          .finding-box { background: #f8fafc; padding: 8px; border-radius: 6px; border-left: 3px solid #1e3a8a; }
+          .finding-label { font-size: 9px; font-weight: 900; text-transform: uppercase; color: #1e3a8a; margin-bottom: 2px; display: block; }
+          .finding-val { font-size: 11px; font-weight: 700; color: #334155; line-height: 1.2; }
+
+          .med-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          /* Blue Table Headers */
+          .med-table th { background: #f1f5f9; color: #1e3a8a; padding: 8px; font-size: 10px; text-transform: uppercase; text-align: left; border: 1px solid #cbd5e1; font-weight: 900; }
+          .med-table td { padding: 10px 8px; border: 1px solid #e2e8f0; vertical-align: middle; }
           
-          .med-name { font-size: 15px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
-          .qty-text { font-size: 15px; font-weight: 800; color: #000; text-align: center; }
-          .dosage-text { font-size: 13px; font-weight: 700; color: #334155; }
+          .med-name { font-size: 14px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .qty-text { font-size: 14px; font-weight: 800; color: #1e3a8a; text-align: center; }
+          .dosage-text { font-size: 12px; font-weight: 700; color: #1e3a8a; }
 
-          /* Footer */
-          .policy-box { background: #f8fafc; border-left: 4px solid #1e3a8a; padding: 12px; border-radius: 4px; margin-top: auto; }
-          .policy-text { font-size: 12px; font-weight: 800; color: #1e3a8a; text-align: center; }
+          .policy-box { background: #f8fafc; border-left: 4px solid #1e3a8a; padding: 10px; border-radius: 4px; margin-top: auto; }
+          .policy-text { font-size: 11px; font-weight: 800; color: #1e3a8a; text-align: center; }
 
-          .footer-sigs { display: flex; justify-content: space-between; margin-top: 30px; padding-bottom: 5mm; }
-          .sig-box { width: 45%; text-align: center; }
-          .sig-line { border-top: 2px solid #0f172a; margin-bottom: 6px; }
-          .sig-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; }
+          .footer-sigs { display: flex; justify-content: space-between; margin-top: 20px; padding-bottom: 2mm; }
+          .sig-box { width: 40%; text-align: center; }
+          .sig-line { border-top: 1.5px solid #0f172a; margin-bottom: 4px; }
+          .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-box">
-            <img src="/logo.png" class="logo-img" onerror="this.style.display='none'">
+            <img src="/logo.png" class="logo-img" style="height: 45px;" onerror="this.style.display='none'">
             <div class="brand-name">${branchInfo.name}</div>
           </div>
           <div class="contact-details">
@@ -131,8 +133,19 @@ export const handlePrintMedical = async (order) => {
             <span class="val">${patientAge} Y / ${patientGender}</span>
           </div>
           <div class="info-item" style="text-align: right;">
-            <span class="label">Location / District</span>
+            <span class="label">Location</span>
             <span class="val">${patientAddress}</span>
+          </div>
+        </div>
+
+        <div class="findings-container">
+          <div class="finding-box">
+            <span class="finding-label">Complain</span>
+            <div class="finding-val">${order.complain || 'N/A'}</div>
+          </div>
+          <div class="finding-box">
+            <span class="finding-label">Diagnosis</span>
+            <div class="finding-val">${order.diagnosis || 'N/A'}</div>
           </div>
         </div>
 
@@ -148,7 +161,7 @@ export const handlePrintMedical = async (order) => {
             ${order.items?.map(item => `
               <tr>
                 <td class="med-name">${item.medicineName}</td>
-                <td class="qty-text" style="text-align:center;">${item.quantity}</td>
+                <td class="qty-text">${item.quantity}</td>
                 <td class="dosage-text">${item.dosage || 'N/A'}</td>
               </tr>
             `).join('') || '<tr><td colspan="3" style="text-align:center;">No medications listed.</td></tr>'}
@@ -156,9 +169,7 @@ export const handlePrintMedical = async (order) => {
         </table>
 
         <div class="policy-box">
-          <div class="policy-text">
-            Fadlan: Soo laabashadu waa (7) maalmood gudahood oo kaliya.
-          </div>
+          <div class="policy-text">Fadlan: Soo laabashadu waa (7) maalmood gudahood oo kaliya.</div>
         </div>
 
         <div class="footer-sigs">
@@ -174,7 +185,7 @@ export const handlePrintMedical = async (order) => {
 
         <script>
           window.onload = () => {
-            setTimeout(() => { window.print(); window.close(); }, 800);
+            setTimeout(() => { window.print(); window.close(); }, 500);
           };
         </script>
       </body>
