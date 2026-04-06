@@ -16,7 +16,6 @@ import { handlePrintMedical } from "@/utils/printMedical";
 export default function ReceptionPrescriptions({ data }) {
   const [patientNames, setPatientNames] = useState({});
 
-  // ✅ SOO AQRI MAGACYADA BUKAANNADA (PATIENTS COLLECTION)
   useEffect(() => {
     const fetchPatientNames = async () => {
       const namesMap = {};
@@ -34,7 +33,6 @@ export default function ReceptionPrescriptions({ data }) {
         console.error("Error fetching patient names:", err);
       }
     };
-
     if (data.length > 0) fetchPatientNames();
   }, [data]);
 
@@ -47,7 +45,6 @@ export default function ReceptionPrescriptions({ data }) {
           patientData = patientDoc.data();
         }
       }
-
       const completeOrder = {
         ...order,
         patientInfo: {
@@ -58,7 +55,6 @@ export default function ReceptionPrescriptions({ data }) {
           gender: patientData.gender || "N/A"
         }
       };
-
       if (order.category === 'medical') {
         handlePrintMedical(completeOrder);
       } else {
@@ -66,11 +62,11 @@ export default function ReceptionPrescriptions({ data }) {
       }
     } catch (e) {
       console.error("Print error:", e);
-      alert("Error loading patient data for print.");
+      alert("Error loading patient data.");
     }
   };
   
-  // ✅ LOGIC-GA CONFIRM: Hadda wuxuu u gudbinayaa Magaca saxda ah MedicalReport
+  // ✅ THE UPDATED CONFIRM LOGIC
   const handleConfirmDispense = async (order) => {
     const msg = order.category === 'medical' 
       ? "Ma hubtaa inaad bixisay? Stock-ga iyo Qiimaha ayaa laga jaranayaa."
@@ -81,10 +77,9 @@ export default function ReceptionPrescriptions({ data }) {
     const batch = writeBatch(db);
     
     try {
-      // 1. HEL MAGACA SAXDA AH SI REPORT-KU U HELO
       const pName = patientNames[order.patientId] || order.displayName || order.patientName || "Unnamed Patient";
 
-      // 2. Kaliya jar Stock haddii ay tahay Medical oo ay items jiraan
+      // 🛑 STEP 1: STOCK CHECK (Crucial for Medical Category)
       if (order.category === 'medical' && order.items && Array.isArray(order.items)) {
         for (const item of order.items) {
           if (item.medicineId) {
@@ -93,36 +88,47 @@ export default function ReceptionPrescriptions({ data }) {
 
             if (medSnap.exists()) {
               const currentMed = medSnap.data();
-              const qtyToReduce = Number(item.quantity || 0);
+              const qtyNeeded = Number(item.quantity || 0);
+              const stockAvailable = Number(currentMed.quantity || 0);
+
+              // CHECK: Is there enough?
+              if (qtyNeeded > stockAvailable) {
+                // Somali Error Message
+                alert(`DAAWO KUGU FILAN MAHEYSATID! ❌\n\nMagaca Daawada: ${item.medicineName}\nStock-gaaga: ${stockAvailable}\nWaxaad rabtaa: ${qtyNeeded}\n\nFadlan sax stock-ga ka hor intaadan confirm gareyn.`);
+                return; // STOP EVERYTHING
+              }
               
-              const unitPrice = Number(currentMed.price || 0) / Number(currentMed.quantity || 1);
-              const totalToReduce = unitPrice * qtyToReduce;
+              // Calculate price reduction based on average unit price
+              const unitPrice = Number(currentMed.price || 0) / (Number(currentMed.quantity) || 1);
+              const totalToReduce = unitPrice * qtyNeeded;
 
               batch.update(medRef, { 
-                quantity: increment(-qtyToReduce),
+                quantity: increment(-qtyNeeded),
                 price: increment(-totalToReduce)
               });
+            } else {
+              alert(`Error: Daawadan ${item.medicineName} laguma helin database-ka!`);
+              return;
             }
           }
         }
       }
 
-      // 3. Dooro collection-ka saxda ah si loo bedelo Status-ka
+      // 🛑 STEP 2: IF STOCK IS OK, UPDATE PRESCRIPTION STATUS
       const collectionName = order.category === 'medical' ? "medical_prescriptions" : "prescriptions";
       const presRef = doc(db, collectionName, order.id);
       
       batch.update(presRef, { 
         status: "completed", 
         dispensedAt: serverTimestamp(),
-        // ✅ KEYDKA MAGACA: Halkan ayaa Report-ku ka akhrisanayaa magaca rasmiga ah
         patientNameReport: pName 
       });
 
       await batch.commit();
-      alert("Success! Status updated to Completed. ✅");
+      alert("Si guul leh ayaa loo diwaangeliyey! ✅");
     } catch (e) { 
       console.error("Confirm error:", e);
-      alert("Error: " + e.message); 
+      alert("Cillad ayaa dhacday: " + e.message); 
     }
   };
 

@@ -237,6 +237,7 @@ export default function AdminDashboard() {
           )}
 
           {/* MAIN TABLES (BRANCHES / USERS / MEDICAL) */}
+        {/* MAIN TABLES (BRANCHES / USERS / MEDICAL) */}
           {(activeView === "branches" || activeView === "users" || activeView === "medical") && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex justify-between items-center">
@@ -270,38 +271,77 @@ export default function AdminDashboard() {
                       <TableCell className="font-bold uppercase text-[10px] text-blue-600">
                         {activeView === "branches" ? "Location" : activeView === "users" ? "Role" : "Quantity"}
                       </TableCell>
-                      {activeView === "medical" && <TableCell className="font-bold uppercase text-[10px] text-blue-600">Price</TableCell>}
+
+                      {/* ADDED UNIT PRICE HEADER */}
+                      {activeView === "medical" && <TableCell className="font-bold uppercase text-[10px] text-blue-600">Unit Price</TableCell>}
+                      
+                      <TableCell className="font-bold uppercase text-[10px] text-blue-600">
+                        {activeView === "medical" ? "Total Value" : ""}
+                      </TableCell>
+                      
                       <TableCell className="font-bold text-right pr-6 uppercase text-[10px] text-blue-600">Actions</TableCell>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedData.map((item) => (
-                      <TableRow key={item.id} className="border-slate-50 dark:border-slate-800">
-                        <TableCell className="py-4 pl-6 font-bold uppercase">{item.fullName || item.name || item.medicineName}</TableCell>
-                        {activeView === "users" && (
-                          <TableCell>
-                            <Badge variant="outline" className="text-blue-600 border-blue-200 uppercase text-[9px] font-black">
-                              {item.branch || "No Branch"}
-                            </Badge>
+                    {paginatedData.map((item) => {
+                      // MATH: Calculate Unit Price
+                      const unitPrice = activeView === "medical" && item.quantity > 0 
+                        ? (item.price / item.quantity).toFixed(2) 
+                        : "0.00";
+
+                      return (
+                        <TableRow key={item.id} className="border-slate-50 dark:border-slate-800">
+                         <TableCell className="py-4 pl-6 font-bold uppercase text-slate-700">
+  <div className="flex flex-col">
+    {item.medicineName}
+    {/* This shows the Branch Name specifically for this medicine */}
+    <span className="text-[9px] text-blue-500 font-black tracking-widest mt-1">
+      LOCATION: {item.branchId || "MAIN"}
+    </span>
+  </div>
+</TableCell>
+                          
+                          {activeView === "users" && (
+                            <TableCell>
+                              <Badge variant="outline" className="text-blue-600 border-blue-200 uppercase text-[9px] font-black">
+                                {item.branch || "No Branch"}
+                              </Badge>
+                            </TableCell>
+                          )}
+
+                          <TableCell className="text-xs font-bold text-slate-500 uppercase">
+                            {item.location || item.role || item.quantity}
                           </TableCell>
-                        )}
-                        <TableCell className="text-xs font-bold text-slate-500 uppercase">
-                          {item.location || item.role || item.quantity}
-                        </TableCell>
-                        {activeView === "medical" && <TableCell className="font-bold text-emerald-600">${item.price}</TableCell>}
-                        <TableCell className="text-right pr-6 space-x-1">
-                          <Button variant="ghost" size="sm" className="text-blue-600 font-bold" onClick={() => {
-                            if (activeView === "branches") { setEditBranchId(item.id); setBForm(item); setShowBranchModal(true); }
-                            else if (activeView === "users") { setEditUserId(item.id); setUForm({ ...item, password: "" }); setShowUserModal(true); }
-                            else { setEditStockId(item.id); setSForm(item); setShowStockModal(true); }
-                          }}><Edit3 size={16} /></Button>
-                          <Button variant="ghost" size="sm" className="text-red-500 font-bold" onClick={() => handleDelete(activeView === "medical" ? "branch_medicines" : activeView, item.id)}><Trash2 size={16} /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+
+                          {/* ADDED UNIT PRICE CELL */}
+                          {activeView === "medical" && (
+                            <TableCell className="font-bold text-slate-400">
+                              ${unitPrice}
+                            </TableCell>
+                          )}
+                          
+
+                          {activeView === "medical" && (
+                            <TableCell className="font-bold text-emerald-600">
+                              ${item.price.toFixed(2)}
+                            </TableCell>
+                          )}
+
+                          <TableCell className="text-right pr-6 space-x-1">
+                            <Button variant="ghost" size="sm" className="text-blue-600 font-bold" onClick={() => {
+                              if (activeView === "branches") { setEditBranchId(item.id); setBForm(item); setShowBranchModal(true); }
+                              else if (activeView === "users") { setEditUserId(item.id); setUForm({ ...item, password: "" }); setShowUserModal(true); }
+                              else { setEditStockId(item.id); setSForm(item); setShowStockModal(true); }
+                            }}><Edit3 size={16} /></Button>
+                            <Button variant="ghost" size="sm" className="text-red-500 font-bold" onClick={() => handleDelete(activeView === "medical" ? "branch_medicines" : activeView, item.id)}><Trash2 size={16} /></Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
-
+                
+                {/* ... (Pagination Controls stay the same) ... */}
                 {/* PAGINATION CONTROLS */}
                 <div className="p-4 border-t dark:border-slate-800 flex items-center justify-between">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Page {currentPage} of {totalPages}</p>
