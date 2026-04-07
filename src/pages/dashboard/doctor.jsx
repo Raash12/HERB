@@ -3,11 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { auth, db } from "../../firebase"; 
 import { collection, query, where, onSnapshot } from "firebase/firestore";
+// Add FileText here
+import { 
+  LayoutDashboard, Calendar, LogOut, Moon, Sun, Stethoscope,
+  Users, CheckCircle2, Clock, TrendingUp, Loader2, Activity, Lock, KeyRound,
+  FileText, Pill 
+} from "lucide-react";
 
 // Components
 import DoctorAppointments from "../doctor/DoctorAppointments"; 
 import MedicalPrescription from "../doctor/MedicalPrescription"; 
 import PrescriptionPage from "../doctor/PrescriptionPage"; 
+import DoctorPrescriptionView from "../doctor/DoctorPrescriptionView";
 
 // UI Components
 import { 
@@ -19,11 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-// Icons
-import { 
-  LayoutDashboard, Calendar, LogOut, Moon, Sun, Stethoscope,
-  Users, CheckCircle2, Clock, TrendingUp, Loader2, Activity, Lock, KeyRound
-} from "lucide-react";
+
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
@@ -139,6 +142,22 @@ export default function DoctorDashboard() {
                 <span className="font-bold">Security</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+              
+
+            <SidebarMenuItem>
+  <SidebarMenuButton 
+    isActive={activeView === "prescriptions"} 
+    onClick={() => {
+      setActiveView("prescriptions");
+      setSelectedPatientId(null); // Clear patient selection when moving to general view
+    }}
+  >
+    <FileText size={20} />
+    <span className="font-bold uppercase text-[11px] tracking-wider">Prescriptions</span>
+  </SidebarMenuButton>
+</SidebarMenuItem>
+
+
           </SidebarMenu>
         </SidebarContent>
 
@@ -275,6 +294,11 @@ export default function DoctorDashboard() {
         {activeView === "eye" && selectedPatientId && (
           <div className="animate-in zoom-in-95 duration-500">
             <PrescriptionPage patientId={selectedPatientId} onBack={backToAppointments} />
+          </div>
+        )}
+        {activeView === "prescriptions" && (
+          <div className="animate-in zoom-in-95 duration-500">
+            <DoctorPrescriptionView />
           </div>
         )}
 

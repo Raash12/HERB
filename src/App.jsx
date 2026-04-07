@@ -6,6 +6,7 @@ import ReceptionDashboard from "./pages/dashboard/reception";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
 import PrescriptionPage from "./pages/doctor/PrescriptionPage";
 import MedicalPrescription from "./pages/doctor/MedicalPrescription";
+import DoctorPrescriptionView from "./pages/doctor/DoctorPrescriptionView";
 
 export default function App() {
   return (
@@ -20,6 +21,8 @@ export default function App() {
       <Route path="/dashboard/doctor/appointments" element={<DoctorAppointments />} />
       <Route path="/doctor/prescription/:id" element={<PrescriptionPage />} />
       <Route path="/doctor/medical-prescription/:id" element={<MedicalPrescription />} />
+      <Route path="/doctor/prescriptions" element={<DoctorPrescriptionView />} />
+
     </Routes>
   );
 }
