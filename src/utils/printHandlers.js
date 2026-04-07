@@ -16,6 +16,8 @@ export const handleInvoicePrint = async (patient, visit) => {
 
   let fetchedDept = visit.department || "Eye";
   let fetchedDoctor = visit.doctorName || "General";
+  // 2. Ku dar doorsoomaha phone-ka
+  let fetchedPhone = patient.phone || "N/A";
 
   try {
     const patientId = patient.id || visit.patientId;
@@ -25,6 +27,8 @@ export const handleInvoicePrint = async (patient, visit) => {
         const pData = patientDoc.data();
         fetchedDept = pData.department || pData.dept || fetchedDept;
         fetchedDoctor = pData.doctorName || pData.doctor || fetchedDoctor;
+        // 3. Ka aqri phone-ka Firestore (haddii uusan hore ugu jirin patient object-ga)
+        fetchedPhone = pData.phone || pData.telephone || fetchedPhone;
       }
     }
 
@@ -110,53 +114,51 @@ export const handleInvoicePrint = async (patient, visit) => {
             font-size: 13px;
             font-weight: 700;
             text-align: center;
-            border-radius: 6px; /* Casri ah */
-            letter-spacing: 1.2px; /* Casri ah */
+            border-radius: 6px;
+            letter-spacing: 1.2px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
 
-          /* Table Style - Separate + Radius */
           .info-table {
             width: 100%;
-            border-collapse: separate; /* Bedelkii collapse */
-            border-spacing: 0 6px; /* Masaafo u dhaxaysa rows-ka */
+            border-collapse: separate;
+            border-spacing: 0 6px;
             margin-bottom: 15px;
           }
           .info-table td {
-            padding: 8px 10px; /* Padding la kordhiyay */
+            padding: 8px 10px;
             background: #ffffff;
             border-top: 1px solid #f1f5f9;
             border-bottom: 1px solid #f1f5f9;
           }
           .info-table td:first-child {
             border-left: 1px solid #f1f5f9;
-            border-radius: 8px 0 0 8px; /* Rounded corners bidix */
+            border-radius: 8px 0 0 8px;
           }
           .info-table td:last-child {
             border-right: 1px solid #f1f5f9;
-            border-radius: 0 8px 8px 0; /* Rounded corners midig */
+            border-radius: 0 8px 8px 0;
             box-shadow: 2px 0 4px rgba(0,0,0,0.02);
           }
 
           .label {
-            font-weight: 800; /* Font-weight la kordhiyay */
-            color: #0f172a; /* Midab madow ka xiga */
+            font-weight: 800;
+            color: #0f172a;
             width: 40%;
             background: #f8fafc !important;
             font-size: 10px;
             text-transform: uppercase;
           }
 
-          /* Total Box Casri ah */
           .total-box {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin: 20px 0 10px;
-            padding: 12px 14px; /* Padding la kordhiyay */
+            padding: 12px 14px;
             background: #f1f5f9;
-            border-left: 5px solid #0b3b5f; /* Border dhumuc weyn */
-            border-radius: 12px; /* Rounded corners weyn */
+            border-left: 5px solid #0b3b5f;
+            border-radius: 12px;
             box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
           }
           .total-label {
@@ -216,9 +218,12 @@ export const handleInvoicePrint = async (patient, visit) => {
         <table class="info-table">
           <tr><td class="label">Date:</td><td class="bold">${dateStr}</td></tr>
           <tr><td class="label">Patient:</td><td class="uppercase bold" style="color: #0b3b5f;">${patient.fullName}</td></tr>
+          
+          <tr><td class="label">Phone:</td><td class="bold uppercase">${fetchedPhone}</td></tr>
+          
           <tr><td class="label">Age/Sex:</td><td>${patient.age || 'N/A'}Y | ${patient.gender || 'N/A'}</td></tr>
           <tr><td class="label">Department:</td><td class="uppercase bold">${fetchedDept}</td></tr>
-          <tr><td class="label">Doctor:</td><td class="uppercase">DR. ${fetchedDoctor}</td></tr>
+          <tr><td class="label">Doctor:</td><td class="uppercase bold">DR. ${fetchedDoctor}</td></tr>
         </table>
 
         <div class="total-box">

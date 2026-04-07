@@ -17,14 +17,14 @@ export const handlePrintMedicalInvoice = async (order) => {
   let patientInfo = {
     age: order.patientInfo?.age || "N/A",
     gender: order.patientInfo?.gender || "N/A",
-    doctor: order.doctorName || "General"
+    doctor: order.doctorName || "General",
+    phone: "N/A" 
   };
 
   let itemsWithLivePrices = [];
   let grandTotal = 0;
 
   try {
-    // 1. Fetch Patient Info
     if (order.patientId) {
       const pDoc = await getDoc(doc(db, "patients", order.patientId));
       if (pDoc.exists()) {
@@ -32,10 +32,10 @@ export const handlePrintMedicalInvoice = async (order) => {
         patientInfo.age = pData.age || patientInfo.age;
         patientInfo.gender = pData.gender || patientInfo.gender;
         patientInfo.doctor = pData.doctorName || pData.doctor || patientInfo.doctor;
+        patientInfo.phone = pData.phone || pData.telephone || pData.phoneNo || "N/A";
       }
     }
 
-    // 2. Fetch Branch Info
     const currentUser = auth.currentUser;
     if (currentUser) {
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -51,7 +51,6 @@ export const handlePrintMedicalInvoice = async (order) => {
       }
     }
 
-    // 3. Fetch Live Prices
     if (order.items && order.items.length > 0) {
       for (const item of order.items) {
         let livePrice = 0;
@@ -142,10 +141,10 @@ export const handlePrintMedicalInvoice = async (order) => {
         <table class="info-table">
           <tr><td class="label">Date:</td><td class="bold">${dateStr}</td></tr>
           <tr><td class="label">Patient:</td><td class="uppercase bold" style="color: #0b3b5f;">${order.patientNameReport}</td></tr>
+          <tr><td class="label">Phone:</td><td class="bold uppercase">${patientInfo.phone}</td></tr>
           <tr><td class="label">Age/Sex:</td><td>${patientInfo.age}Y | ${patientInfo.gender}</td></tr>
-          <tr><td class="label">Doctor:</td><td class="uppercase">DR. ${patientInfo.doctor}</td></tr>
-          <tr><td class="label">Invoice:</td><td>#${order.id?.slice(-6).toUpperCase()}</td></tr>
-        </table>
+          <tr><td class="label">Doctor:</td><td class="uppercase bold">DR. ${patientInfo.doctor}</td></tr>
+          </table>
 
         <table class="items-table">
           <thead>

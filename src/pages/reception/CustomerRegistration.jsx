@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, Printer } from "lucide-react";
+import { Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, Printer, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 
 const BANAADIR_DISTRICTS = ["Cabdiasiis", "Boondheere", "Dayniile", "Dharkeenley", "Hamar Jajab", "Hamar Weyne", "Hodan", "Howlwadaag", "Huriwaa", "Kaaraan", "Kaxda", "Shangaani", "Shibis", "Waaberi", "Wadajir", "Wardhiigley", "Warta Nabada", "Yaaqshiid", "Garasbaaley", "Gubadley"];
 
 export default function CustomerRegistration() {
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false); // State cusub oo guusha ah
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,6 +57,12 @@ export default function CustomerRegistration() {
     return () => unsubscribe();
   }, [myBranch]);
 
+  // Function-kan wuxuu muujinayaa farriinta guusha
+  const showSuccessToast = () => {
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
+  };
+
   const handleRegisterNew = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -74,8 +81,15 @@ export default function CustomerRegistration() {
       };
 
       await addDoc(collection(db, "visits"), vData);
-      handleInvoicePrint({ ...formData, id: pRef.id }, vData);
+      
       setOpen(false);
+      showSuccessToast(); // Muuji Successfully!
+      
+      // Print-ka waxaan saaraynaa dib-u-dhac yar si uusan browser-ku u xannibin
+      setTimeout(() => {
+        handleInvoicePrint({ ...formData, id: pRef.id }, vData);
+      }, 500);
+
       resetForm();
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -100,34 +114,71 @@ export default function CustomerRegistration() {
       };
 
       await addDoc(collection(db, "visits"), vData);
-      handleInvoicePrint(selectedPatient, vData);
+      
       setResendOpen(false);
+      showSuccessToast(); // Muuji Successfully!
+
+      setTimeout(() => {
+        handleInvoicePrint(selectedPatient, vData);
+      }, 500);
+
       resetForm();
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const resetForm = () => setFormData({ fullName: "", phone: "", address: "", age: "", gender: "", department: "", doctorId: "", doctorName: "", amount: "" });
 
-  const filteredPatients = patients.filter(p => p.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || p.phone?.includes(searchTerm));
+  const filteredPatients = patients.filter(p => 
+    p.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.phone?.includes(searchTerm)
+  );
+
+  const totalPages = Math.ceil(filteredPatients.length / recordsPerPage) || 1;
   const currentRecords = filteredPatients.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto relative">
+      
+      {/* SUCCESS TOAST MESSAGE */}
+      {success && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-full duration-300">
+           <div className="bg-green-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-green-400">
+              <CheckCircle2 size={20} />
+              <span className="font-black uppercase tracking-widest text-sm">Successfully Registered!</span>
+           </div>
+        </div>
+      )}
+
+      {/* TOP HEADER */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card p-6 rounded-xl border shadow-sm">
         <div className="space-y-1">
-          <h2 className="text-2xl md:text-3xl font-black flex items-center gap-2"><Users className="text-blue-600" size={28} /> MASTER REGISTRY</h2>
+          <h2 className="text-2xl md:text-3xl font-black flex items-center gap-2">
+            <Users className="text-blue-600" size={28} /> MASTER REGISTRY
+          </h2>
           <p className="text-sm text-muted-foreground font-medium uppercase tracking-tight">Branch: {myBranch || "..."}</p>
         </div>
+        
         <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-            <Input placeholder="Search patient..." className="pl-10 h-11" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Input 
+              placeholder="Search patient..." 
+              className="pl-10 h-11 bg-background rounded-lg" 
+              value={searchTerm} 
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }} 
+            />
           </div>
-          <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700 h-11 px-6 font-black"><UserPlus size={18} className="mr-2" /> NEW PATIENT</Button>
+          <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700 h-11 px-6 font-black w-full sm:w-auto">
+            <UserPlus size={18} className="mr-2" /> NEW PATIENT
+          </Button>
         </div>
       </div>
 
-      <Card className="shadow-xl border-none overflow-hidden bg-card">
+      {/* TABLE CARD */}
+      <Card className="shadow-xl border-none overflow-hidden bg-card rounded-xl">
         <Table>
           <TableHeader className="bg-slate-900">
             <TableRow>
@@ -139,7 +190,7 @@ export default function CustomerRegistration() {
           </TableHeader>
           <TableBody>
             {currentRecords.map((p) => (
-              <TableRow key={p.id} className="hover:bg-accent/50 border-b">
+              <TableRow key={p.id} className="hover:bg-accent/50 border-b text-xs font-medium">
                 <TableCell className="py-4 pl-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black">{p.fullName?.charAt(0)}</div>
@@ -149,7 +200,11 @@ export default function CustomerRegistration() {
                 <TableCell className="text-center">
                   <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px] font-black">{p.visitCount || 1} Visits</Badge>
                 </TableCell>
-                <TableCell className="text-center font-semibold text-xs"><MapPin size={12} className="inline mr-1 text-red-500" /> {p.address}</TableCell>
+                <TableCell className="text-center font-semibold text-xs">
+                    <div className="flex items-center justify-center gap-1 text-slate-500">
+                        <MapPin size={12} className="text-red-500" /> {p.address}
+                    </div>
+                </TableCell>
                 <TableCell className="text-right pr-6 flex justify-end gap-2">
                   <Button variant="outline" size="sm" className="border-green-600 text-green-600 font-bold h-9 text-[10px]" onClick={() => handleInvoicePrint(p, { amount: p.lastAmount || 0, department: p.lastDept || 'Service', doctorName: p.doctorName || 'General' })}><Printer size={14} className="mr-1" /> INVOICE</Button>
                   <Button size="sm" className="bg-indigo-600 font-bold h-9 text-[10px]" onClick={() => { setSelectedPatient(p); setResendOpen(true); }}><RefreshCcw size={14} className="mr-1" /> RESEND</Button>
@@ -158,6 +213,38 @@ export default function CustomerRegistration() {
             ))}
           </TableBody>
         </Table>
+
+        {/* SYSTEM-STYLE PAGINATION FOOTER */}
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-t">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            Showing {currentRecords.length} of {filteredPatients.length} records
+          </p>
+          <div className="flex items-center gap-4">
+             <span className="text-[11px] font-black text-slate-500 uppercase tracking-tighter">
+                Page {currentPage} of {totalPages}
+             </span>
+             <div className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 bg-white dark:bg-slate-800" 
+                  disabled={currentPage === 1} 
+                  onClick={() => setCurrentPage(p => p - 1)}
+                >
+                  <ChevronLeft size={16} />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 bg-white dark:bg-slate-800" 
+                  disabled={currentPage === totalPages} 
+                  onClick={() => setCurrentPage(p => p + 1)}
+                >
+                  <ChevronRight size={16} />
+                </Button>
+             </div>
+          </div>
+        </div>
       </Card>
 
       {/* NEW PATIENT DIALOG */}
@@ -174,11 +261,13 @@ export default function CustomerRegistration() {
             <div><label className="text-[11px] font-black uppercase">Phone</label><Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required /></div>
             <div><label className="text-[11px] font-black uppercase">District</label><select className="w-full p-2.5 rounded-md border text-sm dark:bg-slate-900" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required><option value="">Select District</option>{BANAADIR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
             <div className="col-span-2 grid grid-cols-3 gap-3 border-t pt-4">
-              <div><label className="text-[11px] font-black uppercase">Dept</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required><option value="">Select</option><option value="Eye">Eye</option><option value="Ear">Ear</option></select></div>
-              <div><label className="text-[11px] font-black uppercase">Doctor</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({...formData, doctorId: e.target.value, doctorName: d?.fullName || ""}) }} required><option value="">Select</option>{doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}</select></div>
+              <div><label className="text-[11px] font-black uppercase">Dept</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900 font-bold" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required><option value="">Select</option><option value="Eye">Eye</option><option value="Ear">Ear</option></select></div>
+              <div><label className="text-[11px] font-black uppercase">Doctor</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900 font-bold" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({...formData, doctorId: e.target.value, doctorName: d?.fullName || ""}) }} required><option value="">Select</option>{doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}</select></div>
               <div><label className="text-[11px] font-black uppercase text-red-600">Amount ($)</label><Input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required /></div>
             </div>
-            <Button type="submit" className="col-span-2 bg-blue-600 h-12 font-black uppercase mt-2">{loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}</Button>
+            <Button type="submit" className="col-span-2 bg-blue-600 h-12 font-black uppercase mt-2 shadow-lg" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
@@ -191,16 +280,18 @@ export default function CustomerRegistration() {
             <DialogDescription>Process a returning visit for {selectedPatient?.fullName}.</DialogDescription>
           </DialogHeader>
           <div className="bg-indigo-50 dark:bg-indigo-950/30 p-4 rounded-lg">
-             <h3 className="font-bold">{selectedPatient?.fullName}</h3>
-             <Badge className="mt-2 bg-indigo-600">Visit #{(selectedPatient?.visitCount || 1) + 1}</Badge>
+              <h3 className="font-bold">{selectedPatient?.fullName}</h3>
+              <Badge className="mt-2 bg-indigo-600">Visit #{(selectedPatient?.visitCount || 1) + 1}</Badge>
           </div>
           <form onSubmit={handleResend} className="space-y-4 pt-2">
-             <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-[11px] font-black uppercase">Dept</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900 font-bold" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required><option value="">Select</option><option value="Eye">Eye</option><option value="Ear">Ear</option></select></div>
                 <div><label className="text-[11px] font-black uppercase text-red-600">Amount ($)</label><Input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required /></div>
-             </div>
-             <div><label className="text-[11px] font-black uppercase">Assign Doctor</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({...formData, doctorId: e.target.value, doctorName: d?.fullName || ""}) }} required><option value="">Select Doctor</option>{doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.fullName}</option>)}</select></div>
-             <Button type="submit" className="w-full bg-indigo-600 h-12 font-black shadow-lg" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : "COMPLETE & PRINT"}</Button>
+              </div>
+              <div><label className="text-[11px] font-black uppercase">Assign Doctor</label><select className="w-full p-2.5 border rounded-md text-sm dark:bg-slate-900 font-bold" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({...formData, doctorId: e.target.value, doctorName: d?.fullName || ""}) }} required><option value="">Select Doctor</option>{doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.fullName}</option>)}</select></div>
+              <Button type="submit" className="w-full bg-indigo-600 h-12 font-black shadow-lg uppercase" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" /> : "COMPLETE & PRINT"}
+              </Button>
           </form>
         </DialogContent>
       </Dialog>
