@@ -3,7 +3,7 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 
 export const handlePrintPrescription = async (order) => {
   const HARDCODED_NAME = "HORSEED WATCH & OPTICAL";
-  const HARDCODED_EMAIL = "Daahirx81@gmail.com";
+  const HARDCODED_EMAIL = "horseedaye@gmail.com";
 
   let branchInfo = {
     name: HARDCODED_NAME,

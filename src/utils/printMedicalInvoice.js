@@ -5,7 +5,7 @@ import logoImg from "../assets/logo.jpeg";
 
 export const handlePrintMedicalInvoice = async (order) => {
   const HARDCODED_NAME = "HORSEED WATCH AND OPTICAL";
-  const HARDCODED_EMAIL = "Daahirx81@gmail.com";
+  const HARDCODED_EMAIL = "horseedaye@gmail.com";
 
   let branchInfo = {
     name: HARDCODED_NAME,
