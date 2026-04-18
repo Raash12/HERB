@@ -67,20 +67,33 @@ export const handlePrintPrescription = async (order) => {
         <title>Rx - ${patientName}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&display=swap');
-          @page { size: A5 portrait; margin: 5mm; }
+          
+          /* --- A5 PAGE SETUP --- */
+          @page { 
+            size: A5 portrait; 
+            margin: 0; 
+          }
           * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-          body { width: 148mm; padding: 6mm; background: #fff; display: flex; flex-direction: column; height: 210mm; }
+          
+          body { 
+            width: 148mm; 
+            height: 210mm; 
+            padding: 8mm; 
+            background: #fff; 
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden;
+          }
 
           .header { 
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 6px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 12px;
           }
-          .logo-img { height: 75px; width: auto; object-fit: contain; }
+          .logo-img { height: 65px; width: auto; object-fit: contain; }
           
-          /* Title Big & Bold */
           .brand-container { text-align: right; flex: 1; }
           .brand-name { 
-            font-size: 32px; 
+            font-size: 28px; 
             font-weight: 900; 
             color: #1e3a8a; 
             text-transform: uppercase; 
@@ -88,7 +101,7 @@ export const handlePrintPrescription = async (order) => {
             letter-spacing: -1px;
           }
           .brand-sub { 
-            font-size: 11px; 
+            font-size: 10px; 
             font-weight: 800; 
             color: #1e3a8a; 
             letter-spacing: 3px; 
@@ -102,41 +115,41 @@ export const handlePrintPrescription = async (order) => {
             background: #f8fafc; margin-bottom: 12px;
           }
           .p-label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; }
-          .p-info { font-size: 14px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .p-info { font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
 
           .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
           .rx-table th { 
             background: #1e3a8a !important; color: white !important; 
-            border: 1px solid #1e3a8a; padding: 10px; font-size: 13px; font-weight: 900;
+            border: 1px solid #1e3a8a; padding: 8px; font-size: 11px; font-weight: 900;
             -webkit-print-color-adjust: exact;
           }
-          .rx-table td { border: 2px solid #1e3a8a; height: 42px; text-align: center; font-size: 24px; font-weight: 900; color: #000; }
-          .row-title { background: #f1f5f9 !important; font-size: 11px !important; color: #1e3a8a !important; width: 85px; -webkit-print-color-adjust: exact; }
+          .rx-table td { border: 2px solid #1e3a8a; height: 38px; text-align: center; font-size: 22px; font-weight: 900; color: #000; }
+          .row-title { background: #f1f5f9 !important; font-size: 10px !important; color: #1e3a8a !important; width: 80px; -webkit-print-color-adjust: exact; }
 
           .bottom-container { display: flex; gap: 10px; }
-          .options-card { flex: 1; border: 3px solid #1e3a8a; border-radius: 8px; padding: 10px; }
-          .section-head { font-size: 12px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; border-bottom: 2px solid #1e3a8a; margin-bottom: 8px; }
+          .options-card { flex: 1; border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px; }
+          .section-head { font-size: 11px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; border-bottom: 2px solid #1e3a8a; margin-bottom: 6px; }
           
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-          .item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #1e3a8a; }
-          .check-box { width: 16px; height: 16px; border: 2px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+          .item { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; color: #1e3a8a; }
+          .check-box { width: 14px; height: 14px; border: 1.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 10px; }
 
           .ipd-card { 
-            width: 135px; background: #1e3a8a !important; color: white !important; 
-            border-radius: 8px; text-align: center; padding: 12px;
+            width: 120px; background: #1e3a8a !important; color: white !important; 
+            border-radius: 8px; text-align: center; padding: 10px;
             -webkit-print-color-adjust: exact;
           }
-          .ipd-number { font-size: 38px; font-weight: 900; line-height: 1; }
+          .ipd-number { font-size: 34px; font-weight: 900; line-height: 1; }
 
           .footer { margin-top: auto; padding-top: 10px; border-top: 3px solid #1e3a8a; display: flex; justify-content: space-between; align-items: flex-end; }
-          .contact-footer { font-size: 11px; font-weight: 800; color: #1e3a8a; line-height: 1.5; }
-          .sig-line { border-top: 2px solid #1e3a8a; width: 160px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .contact-footer { font-size: 10px; font-weight: 800; color: #1e3a8a; line-height: 1.4; }
+          .sig-line { border-top: 2px solid #1e3a8a; width: 150px; text-align: center; padding-top: 5px; font-size: 9px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
         </style>
       </head>
       <body>
 
         <div class="header">
-          <img src="/logo.png" class="logo-img" onerror="this.style.opacity='0'">
+          <img src="/logo.png" class="logo-img" onerror="this.style.display='none'">
           <div class="brand-container">
             <div class="brand-name">${branchInfo.name}</div>
             <div class="brand-sub">WATCH & OPTICAL</div>
@@ -192,14 +205,14 @@ export const handlePrintPrescription = async (order) => {
             </tr>
             <tr>
               <td class="row-title">NEAR / ADD</td>
-              <td>${order.values?.RE?.read?.sph || ''}</td>
-              <td>${order.values?.RE?.read?.cyl || ''}</td>
-              <td>${order.values?.RE?.read?.axis || ''}</td>
-              <td>${order.values?.RE?.read?.va || ''}</td>
-              <td>${order.values?.LE?.read?.sph || ''}</td>
-              <td>${order.values?.LE?.read?.cyl || ''}</td>
-              <td>${order.values?.LE?.read?.axis || ''}</td>
-              <td>${order.values?.LE?.read?.va || ''}</td>
+              <td>${order.values?.RE?.near?.sph || ''}</td>
+              <td>${order.values?.RE?.near?.cyl || ''}</td>
+              <td>${order.values?.RE?.near?.axis || ''}</td>
+              <td>${order.values?.RE?.near?.va || ''}</td>
+              <td>${order.values?.LE?.near?.sph || ''}</td>
+              <td>${order.values?.LE?.near?.cyl || ''}</td>
+              <td>${order.values?.LE?.near?.axis || ''}</td>
+              <td>${order.values?.LE?.near?.va || ''}</td>
             </tr>
           </tbody>
         </table>
@@ -218,9 +231,9 @@ export const handlePrintPrescription = async (order) => {
           </div>
 
           <div class="ipd-card">
-            <div style="font-size: 12px; font-weight: 900;">P.D / IPD</div>
+            <div style="font-size: 11px; font-weight: 900;">P.D / IPD</div>
             <div class="ipd-number">${order.ipd || '--'}</div>
-            <div style="font-size: 9px; font-weight: 800;">MM</div>
+            <div style="font-size: 8px; font-weight: 800;">MM</div>
           </div>
         </div>
 
@@ -234,7 +247,7 @@ export const handlePrintPrescription = async (order) => {
         </div>
 
         <script>
-          window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+          window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 800); };
         </script>
       </body>
     </html>
