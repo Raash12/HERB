@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 // COMPONENTS
 // Ka bixi dashboard folder (..), gal doctor folder, ka dib medical
-import Medical from "../doctor/medical";
+import Medical from "../doctor/medical"; // 'M' weyn ka dhig halkaan
 import MedicalReport from "../../report/medicalReport";
 import OpticalReport from "../../report/opticalReport";
 
