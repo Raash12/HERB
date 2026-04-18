@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 
 // UI Components
+// fix casing
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
