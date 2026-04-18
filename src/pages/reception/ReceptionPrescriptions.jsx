@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 // Icons
-import { Printer, PackageCheck, Trash2, User, ReceiptText, Eye, X, ShoppingBag, Pill, AlertTriangle } from "lucide-react";
+import { Printer, PackageCheck, Trash2, User, ReceiptText, Eye, X, ShoppingBag, Pill, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 // Utils
 import { handlePrintPrescription } from "@/utils/printPrescription";
@@ -23,7 +23,7 @@ export default function ReceptionPrescriptions({ data }) {
   const [patientNames, setPatientNames] = useState({});
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [discounts, setDiscounts] = useState({}); 
-  const [liveStock, setLiveStock] = useState({}); // Waxaan u bedelnay liveStock si loogu daro qty
+  const [liveStock, setLiveStock] = useState({});
 
   // 1. Fetch Patient Names
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function ReceptionPrescriptions({ data }) {
     if (data?.length > 0) fetchPatientNames();
   }, [data]);
 
-  // 2. Fetch Live Prices & Stock (Updated)
+  // 2. Fetch Live Prices & Stock
   const fetchLiveInfo = async (items) => {
     const infoMap = {};
     for (const item of items) {
@@ -66,6 +66,27 @@ export default function ReceptionPrescriptions({ data }) {
       if (order.category === 'medical' && order.items) {
         fetchLiveInfo(order.items);
       }
+    }
+  };
+
+  // Logic-ga lagu xaqiijinayo dalabka Optical-ka
+  const handleConfirmOptical = async (order) => {
+    if (!window.confirm("Ma hubtaa inaad xaqiijiso dalabkan Optical-ka ah?")) return;
+    
+    try {
+      const batch = writeBatch(db);
+      const docRef = doc(db, "prescriptions", order.id);
+      
+      batch.update(docRef, {
+        status: "completed",
+        completedAt: serverTimestamp(),
+        paid: true // Waad ku dari kartaa haddii lacagta la rabo in la xaqiijiyo
+      });
+
+      await batch.commit();
+      alert("Dalabka Optical-ka waa la xaqiijiyey! ✅");
+    } catch (e) {
+      alert("Cillad: " + e.message);
     }
   };
 
@@ -101,11 +122,9 @@ export default function ReceptionPrescriptions({ data }) {
     });
   };
 
-  // 3. Confirm Logic (With Stock Check)
   const handleConfirmDispense = async (order) => {
     const isMedical = order.category === 'medical';
     
-    // Check Stock again before proceeding
     if (isMedical) {
       for (const item of order.items) {
         const stockInfo = liveStock[item.medicineId];
@@ -240,6 +259,17 @@ export default function ReceptionPrescriptions({ data }) {
                     </TableCell>
                     <TableCell className="text-right pr-8">
                       <div className="flex justify-end gap-2">
+                        {/* Shuruudda cusub ee Optical-ka */}
+                        {!isMedical && !isPaid && (
+                          <Button 
+                            onClick={() => handleConfirmOptical(order)} 
+                            size="sm" 
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 font-black text-[9px] uppercase shadow-sm"
+                          >
+                            <CheckCircle2 size={14} className="mr-1" /> Confirm
+                          </Button>
+                        )}
+
                         {isMedical && (
                           <>
                             <Button 
@@ -255,6 +285,7 @@ export default function ReceptionPrescriptions({ data }) {
                             </Button>
                           </>
                         )}
+                        
                         <Button onClick={() => handleEnhancedPrint(order)} size="sm" variant="outline" className="h-8 border-slate-200 text-slate-600 font-black text-[9px] uppercase">
                           <Printer size={14} className="mr-1" /> Print
                         </Button>
