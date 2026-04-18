@@ -1,36 +1,43 @@
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../../firebase";
-import {
-  collection, addDoc, getDocs, doc, getDoc, query, where, 
-  updateDoc, increment, deleteDoc
+import { 
+  collection, getDocs, doc, getDoc, query, where, 
+  addDoc, updateDoc, deleteDoc, serverTimestamp, orderBy 
 } from "firebase/firestore";
 
 // UI Components
-import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Activity, Search, DollarSign, Trash2, Edit3, AlertTriangle, Tag } from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { Search, Trash2, Edit3, Plus, Package, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 export default function Medical() {
   const [userData, setUserData] = useState(null);
-  const [allBranches, setAllBranches] = useState([]);
   const [stock, setStock] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState([]); 
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const itemsPerPage = 8;
+
   const [form, setForm] = useState({ 
     medicineName: "", 
     quantity: "", 
-    branchId: "", 
-    price: "" // This is the Single Unit Price ($)
+    unitPrice: "", 
+    branchId: "" 
   });
 
-  // 1. Initial Data Fetch
   useEffect(() => {
     const fetchData = async () => {
       const user = auth.currentUser;
@@ -39,214 +46,208 @@ export default function Medical() {
       if (uSnap.exists()) {
         const data = uSnap.data();
         setUserData(data);
-        if (data.branch) setForm(f => ({ ...f, branchId: data.branch }));
-        
-        const bSnap = await getDocs(collection(db, "branches"));
-        setAllBranches(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setForm(prev => ({ ...prev, branchId: data.branch || "" }));
       }
+      try {
+        const bSnap = await getDocs(collection(db, "branches"));
+        setBranches(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) { console.error(err); }
     };
     fetchData();
   }, []);
 
-  // 2. Fetch Stock Logic
   const fetchStock = async () => {
     if (!userData) return;
-    setLoading(true);
-    const q = userData.role === "admin" 
-      ? query(collection(db, "branch_medicines")) 
-      : query(collection(db, "branch_medicines"), where("branchId", "==", userData.branch));
-    
-    const snap = await getDocs(q);
-    setStock(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setLoading(false);
+    try {
+      let q = collection(db, "branch_medicines");
+      if (userData.role !== "admin") {
+        // Halkan hubi in userData.branch uu yahay magacii saxda ahaa
+        q = query(q, where("branchId", "==", userData.branch));
+      }
+      const snap = await getDocs(q);
+      const allData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      const sorted = allData.sort((a, b) => {
+        const tA = a.updatedAt?.seconds || 0;
+        const tB = b.updatedAt?.seconds || 0;
+        return tB - tA;
+      });
+      setStock(sorted);
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => { if (userData) fetchStock(); }, [userData]);
 
-  // 3. Handle Add/Update Stock
   const handleSubmit = async () => {
-    if (!form.medicineName || !form.branchId || !form.price || !form.quantity) 
-      return alert("Fadlan buuxi dhammaan xogta!");
+    if (!form.medicineName || !form.quantity || !form.unitPrice || !form.branchId) {
+      return alert("Fadlan buuxi meelaha banaan!");
+    }
 
+    // --- FIX: RAADI MAGACA BRANCH-KA EE U DHIGMA ID-GAN ---
+    const selectedBranch = branches.find(b => b.id === form.branchId);
+    // Haddii uu yahay admin, wuxuu dooranayaa branchId (ID), markaas magaciisa ayaan raadinaynaa
+    // Haddii uu yahay user caadi ah, waxaa dhici karta inuu horay magac u ahaa
+    const branchToSave = selectedBranch ? (selectedBranch.branchName || selectedBranch.name) : form.branchId;
+
+    setIsSubmitting(true);
     try {
-      const name = form.medicineName.toLowerCase().trim();
-      const qty = Number(form.quantity);
-      const unitPriceInput = Number(form.price); 
-      const totalValue = unitPriceInput * qty; // Total calculated for storage
-
+      const payload = {
+        medicineName: form.medicineName.toUpperCase(),
+        quantity: parseFloat(form.quantity),
+        unitPrice: parseFloat(form.unitPrice),
+        price: parseFloat(form.quantity) * parseFloat(form.unitPrice),
+        branchId: branchToSave, // ✅ Hadda waa magacii (e.g., "Hargeisa") ee ma ahan ID-gii koodka ahaa
+        updatedAt: serverTimestamp()
+      };
+      
       if (editId) {
-        const docRef = doc(db, "branch_medicines", editId);
-        await updateDoc(docRef, {
-          medicineName: name,
-          quantity: qty,
-          price: totalValue, 
-          branchId: form.branchId,
-          updatedAt: new Date()
-        });
-        alert("Waa la cusboonaysiiyay! ✅");
+        await updateDoc(doc(db, "branch_medicines", editId), payload);
       } else {
-        const q = query(collection(db, "branch_medicines"), 
-                  where("medicineName", "==", name), 
-                  where("branchId", "==", form.branchId));
-        const existSnap = await getDocs(q);
-
-        if (!existSnap.empty) {
-          const docRef = doc(db, "branch_medicines", existSnap.docs[0].id);
-          await updateDoc(docRef, {
-            quantity: increment(qty),
-            price: increment(totalValue), 
-            updatedAt: new Date()
-          });
-        } else {
-          await addDoc(collection(db, "branch_medicines"), {
-            medicineName: name,
-            quantity: qty,
-            price: totalValue,
-            branchId: form.branchId,
-            updatedAt: new Date(),
-          });
-        }
-        alert("Stock cusub ayaa lagu daray! ✅");
+        await addDoc(collection(db, "branch_medicines"), payload);
       }
       
-      setForm({ ...form, medicineName: "", quantity: "", price: "" });
+      setIsDialogOpen(false);
+      await fetchStock(); 
+      setForm({ medicineName: "", quantity: "", unitPrice: "", branchId: userData?.branch || "" });
       setEditId(null);
-      fetchStock();
-    } catch (err) { alert("Error saving data"); }
+    } catch (e) { alert(e.message); }
+    setIsSubmitting(false);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Ma hubtaa inaad tirtirto?")) {
-      try {
-        await deleteDoc(doc(db, "branch_medicines", id));
-        fetchStock();
-      } catch (err) { alert("Error deleting"); }
-    }
-  };
+  const filteredStock = stock.filter(item => 
+    item.medicineName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const startEdit = (item) => {
-    setEditId(item.id);
-    const unitPrice = item.quantity > 0 ? (item.price / item.quantity).toFixed(2) : 0;
-    setForm({
-      medicineName: item.medicineName,
-      quantity: item.quantity,
-      branchId: item.branchId,
-      price: unitPrice
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const filteredStock = stock.filter(i => i.medicineName.toLowerCase().includes(searchTerm.toLowerCase()));
+  const totalPages = Math.ceil(filteredStock.length / itemsPerPage) || 1;
   const currentItems = filteredStock.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading && !userData) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
-
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h2 className="text-2xl font-black text-blue-600 uppercase tracking-tighter flex items-center gap-2">
-          <Activity size={28}/> Pharmacy Inventory
-        </h2>
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <Input placeholder="Search medicines..." className="pl-10 rounded-xl" onChange={(e) => setSearchTerm(e.target.value)} />
+    <div className="p-6 space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-indigo-50 rounded-3xl text-indigo-600 shadow-inner"><Package size={28} /></div>
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800">Inventory</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Latest items on top</p>
+          </div>
+        </div>
+        
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input 
+              placeholder="Search stock..." 
+              className="pl-12 rounded-full bg-slate-100 border-none h-12"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            />
+          </div>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEditId(null); setForm({ medicineName: "", quantity: "", unitPrice: "", branchId: userData?.branch || "" }); }} className="bg-indigo-600 hover:bg-indigo-700 rounded-full px-8 h-12 font-black uppercase text-[11px] shadow-lg transition-all active:scale-95">
+                <Plus className="mr-2" size={20} /> Add New Medicine
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-[2.5rem] p-10 max-w-md border-none shadow-2xl">
+                <DialogHeader>
+                    <DialogTitle className="font-black uppercase text-xl text-slate-800 flex items-center gap-3">
+                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl"><Package size={20}/></div>
+                      Medicine Entry
+                    </DialogTitle>
+                    <DialogDescription className="sr-only">Maamul inventory-ga.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-6 py-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Select Branch</label>
+                        <select 
+                          className="w-full h-14 rounded-2xl bg-slate-50 border-none px-6 font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                          value={form.branchId}
+                          onChange={(e) => setForm({...form, branchId: e.target.value})}
+                        >
+                          <option value="">Dooro Branch-ga</option>
+                          {branches.map((b) => (
+                            <option key={b.id} value={b.id}>{b.branchName || b.name}</option>
+                          ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Name</label>
+                        <Input placeholder="MEDICINE NAME" className="h-14 rounded-2xl bg-slate-50 border-none px-6 font-bold" value={form.medicineName} onChange={e => setForm({...form, medicineName: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Qty</label>
+                            <Input type="number" placeholder="0" className="h-14 rounded-2xl bg-slate-50 border-none px-6 font-bold" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Unit Price ($)</label>
+                            <Input type="number" placeholder="0.00" className="h-14 rounded-2xl bg-slate-50 border-none px-6 font-bold" value={form.unitPrice} onChange={e => setForm({...form, unitPrice: e.target.value})} />
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button disabled={isSubmitting} onClick={handleSubmit} className="w-full bg-indigo-600 hover:bg-indigo-700 rounded-2xl h-14 font-black uppercase">
+                        {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Save Medicine"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* FORM SECTION */}
-      <Card className="rounded-[2rem] shadow-xl border-none overflow-hidden ring-1 ring-slate-100">
-        <div className={`${editId ? 'bg-amber-500' : 'bg-blue-600'} px-8 py-3 text-white text-[10px] font-black uppercase tracking-widest`}>
-            {editId ? 'Modify Medicine Info' : 'Inventory Entry'}
+      <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-50 min-h-[400px]">
+        <div className="grid grid-cols-5 p-6 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">
+          <div className="pl-4">Medicine</div>
+          <div className="text-center">Stock</div>
+          <div className="text-center">Unit Price</div>
+          <div className="text-center text-indigo-600">Total Value</div>
+          <div className="text-right pr-4">Actions</div>
         </div>
-        <CardContent className="p-8 grid md:grid-cols-5 gap-4 items-end">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Medicine Name</span>
-            <Input value={form.medicineName} onChange={e => setForm({...form, medicineName: e.target.value})} className="rounded-xl bg-slate-50 border-none h-11 uppercase font-bold" />
-          </div>
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Quantity (Units)</span>
-            <Input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="rounded-xl bg-slate-50 border-none h-11" />
-          </div>
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Unit Price ($ for 1)</span>
-            <Input type="number" value={form.price} placeholder="Price for 1" onChange={e => setForm({...form, price: e.target.value})} className="rounded-xl bg-slate-50 border-none h-11" />
-          </div>
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 ml-1">Branch</span>
-            <select disabled={userData?.role !== "admin"} value={form.branchId} onChange={e => setForm({...form, branchId: e.target.value})} className="w-full h-11 rounded-xl bg-slate-50 border-none px-3 text-sm font-bold uppercase">
-              {allBranches.map(b => <option key={b.id} value={b.id}>{b.name || b.id}</option>)}
-            </select>
-          </div>
-          <Button onClick={handleSubmit} className={`h-11 rounded-xl font-bold uppercase transition-all ${editId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-            {editId ? 'Save Edit' : 'Add to Stock'}
-          </Button>
-        </CardContent>
-      </Card>
 
-      {/* TABLE SECTION */}
-      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow className="border-none">
-              <TableCell className="font-bold py-4 pl-8 uppercase text-[11px] text-slate-400">Medicine</TableCell>
-              <TableCell className="font-bold uppercase text-[11px] text-slate-400">Unit Price</TableCell>
-              <TableCell className="font-bold uppercase text-[11px] text-slate-400 text-center">Stock Level</TableCell>
-              <TableCell className="font-bold uppercase text-[11px] text-slate-400 text-right pr-8">Total Inventory Value</TableCell>
-              <TableCell className="font-bold text-right pr-8 uppercase text-[11px] text-slate-400">Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentItems.map((item) => {
-              // MATH: Calculate price for 1 item based on total and quantity
-              const unitPrice = item.quantity > 0 ? (item.price / item.quantity).toFixed(2) : "0.00";
+        <div className="divide-y divide-slate-50">
+          {currentItems.length > 0 ? currentItems.map((item) => {
+            const qty = parseFloat(item.quantity) || 0;
+            const uPrice = parseFloat(item.unitPrice) || 0;
+            const totalStockValue = qty * uPrice;
 
-              return (
-                <TableRow key={item.id} className={`hover:bg-slate-50/50 border-slate-50 ${item.quantity <= 0 ? 'bg-red-50/30' : ''}`}>
-                  <TableCell className="py-4 pl-8 font-black uppercase text-slate-700">
-                    <div className="flex flex-col">
-                      {item.medicineName}
-                      <span className="text-[10px] text-blue-500 font-bold">{item.branchId}</span>
-                    </div>
-                  </TableCell>
+            return (
+              <div key={item.id} className="grid grid-cols-5 p-6 items-center hover:bg-indigo-50/20 transition-all">
+                <div className="pl-4 font-black text-slate-700 uppercase text-sm">{item.medicineName}</div>
+                <div className="text-center">
+                    <Badge className="bg-indigo-50 text-indigo-600 border-none font-black px-4 py-1.5 rounded-xl text-[10px]">{qty} PCS</Badge>
+                </div>
+                <div className="text-center font-bold text-slate-500 text-sm">${uPrice.toFixed(2)}</div>
+                <div className="text-center font-black text-indigo-900 text-lg">${totalStockValue.toFixed(2)}</div>
+
+                <div className="flex justify-end gap-2 pr-4">
+                  <Button variant="ghost" size="icon" onClick={() => { 
+                      setEditId(item.id); 
+                      setForm(item); 
+                      setIsDialogOpen(true); 
+                  }} className="text-indigo-500 h-10 w-10 hover:bg-indigo-50 rounded-xl"><Edit3 size={18} /></Button>
                   
-                  {/* NEW COLUMN: Unit Price */}
-                  <TableCell>
-                    <div className="flex items-center gap-1 font-bold text-slate-500">
-                      <Tag size={12} className="text-blue-500" />
-                      ${unitPrice}
-                    </div>
-                  </TableCell>
+                  <Button variant="ghost" size="icon" onClick={() => { 
+                    if(confirm("Ma tirtirtaa?")) {
+                      deleteDoc(doc(db, "branch_medicines", item.id)).then(fetchStock);
+                    }
+                  }} className="text-red-500 h-10 w-10 hover:bg-red-50 rounded-xl"><Trash2 size={18} /></Button>
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="p-20 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">No Medicines Found</div>
+          )}
+        </div>
 
-                  <TableCell className="text-center">
-                    <Badge className={`rounded-lg px-3 py-1 font-black border-none ${
-                      item.quantity <= 0 ? 'bg-red-600 text-white' : 'bg-emerald-100 text-emerald-600'
-                    }`}>
-                      {item.quantity} UNITS
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell className="text-right pr-8 font-black text-slate-800">
-                      <div className="flex items-center justify-end gap-1">
-                        <DollarSign size={14} className="text-emerald-500" />
-                        {item.price.toFixed(2)}
-                      </div>
-                  </TableCell>
-
-                  <TableCell className="text-right pr-8">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => startEdit(item)} className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-lg">
-                        <Edit3 size={16} />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-lg">
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="flex items-center justify-between p-6 bg-slate-50/50">
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Page {currentPage} / {totalPages}</div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="rounded-xl h-9 w-9 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}><ChevronLeft size={16} /></Button>
+            <Button variant="outline" size="sm" className="rounded-xl h-9 w-9 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)}><ChevronRight size={16} /></Button>
+          </div>
+        </div>
       </div>
     </div>
   );
