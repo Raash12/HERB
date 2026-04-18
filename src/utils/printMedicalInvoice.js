@@ -65,7 +65,6 @@ export const handlePrintMedicalInvoice = async (order) => {
     console.error("Error fetching data:", error);
   }
 
-  // ✅ SAXIDDA DISCOUNT-KA (Magacyada kala duwan ee imaan kara)
   const discountAmount = Number(order.discount || order.discountAmount || 0);
   const finalGrandTotal = subTotalSum - discountAmount;
 
@@ -159,9 +158,9 @@ export const handlePrintMedicalInvoice = async (order) => {
             <span>Subtotal:</span>
             <span>$${subTotalSum.toFixed(2)}</span>
           </div>
-          <div class="summary-row" style="color:red;">
+          <div class="summary-row" style="color: #1e2a3a;">
             <span>Discount:</span>
-            <span>-$${discountAmount.toFixed(2)}</span>
+            <span>$${discountAmount.toFixed(2)}</span>
           </div>
         </div>
 
