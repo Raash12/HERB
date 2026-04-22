@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { 
-  Search, CheckCircle2, Clock, Calendar, Wallet, Pill, User, Loader2, 
+  Search, CheckCircle2, Clock, Calendar, User, Loader2, 
   ChevronLeft, ChevronRight, LayoutDashboard 
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -33,10 +33,10 @@ export default function DoctorRevenueDashboard() {
     const user = auth.currentUser;
     if (!user) return;
 
+    // ✅ Waxaan u xiriirineynaa doctorId, si uu dhakhtarku u arko lacagta u soo gashay kaliya
     const q = query(
       collection(db, "medical_prescriptions"),
-      where("doctorId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("doctorId", "==", user.uid)
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -44,48 +44,55 @@ export default function DoctorRevenueDashboard() {
       
       const dataPromises = snapshot.docs.map(async (prescriptionDoc) => {
         const pData = prescriptionDoc.data();
-        let runningTotal = 0;
+        
+        // ✅ LOGIC CUSUB: Grand Total-ka rasmiga ah ka soo aqri field-ka "totalPaid" ama "finalPaidAmount"
+        // Midkaas ayaa ah kan Reception-ka uu xaqiijiyay (Confirm & Pay)
+        const officialGrandTotal = Number(pData.finalPaidAmount || pData.totalPaid || pData.totalAmount || 0);
 
-        const enrichedItems = await Promise.all((pData.items || []).map(async (item) => {
-          let unitPrice = 0;
-          if (item.medicineId) {
-            const medSnap = await getDoc(doc(db, "branch_medicines", item.medicineId));
-            if (medSnap.exists()) {
-              const medData = medSnap.data();
-              unitPrice = Number(medData.price || 0) / (Number(medData.quantity) || 1);
-            }
-          }
-          const subtotal = unitPrice * Number(item.quantity || 1);
-          runningTotal += subtotal;
-          return { ...item, liveUnitPrice: unitPrice, subtotal };
-        }));
+        const enrichedItems = (pData.items || []).map((item) => {
+          // Qiimaha halkan ka muuqda waa kaliya bandhig (Display)
+          return { 
+            ...item, 
+            displayPrice: item.price || 0 
+          };
+        });
+
+        // Hubi haddii status-ku yahay Paid ama Completed
+        const statusLower = (pData.status || "").toLowerCase();
+        const isPaid = statusLower === "paid" || statusLower === "completed" || pData.paid === true;
 
         return {
           id: prescriptionDoc.id,
           ...pData,
-          calculatedTotal: runningTotal,
+          calculatedTotal: officialGrandTotal, // Lacagta rasmiga ah
           items: enrichedItems,
-          isPaid: pData.status === "paid" || pData.paid === true
+          isPaid: isPaid
         };
       });
 
       const resolvedData = await Promise.all(dataPromises);
-      setPrescriptions(resolvedData);
+
+      // Manual sorting maadaama laga yaabo in index-ka uu maqan yahay
+      const sortedData = resolvedData.sort((a, b) => {
+        const dateA = a.createdAt?.seconds || 0;
+        const dateB = b.createdAt?.seconds || 0;
+        return dateB - dateA;
+      });
+
+      setPrescriptions(sortedData);
       
-      // --- CALCULATION LOGIC ---
+      // --- REVENUE STATS ---
       const now = new Date();
       const startOfDay = new Date(now.setHours(0,0,0,0)).getTime();
-      const startOfWeek = new Date().setDate(now.getDate() - 7);
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
       
-      const daily = resolvedData.filter(p => p.isPaid && (p.createdAt?.seconds * 1000) > startOfDay);
-      const weekly = resolvedData.filter(p => p.isPaid && (p.createdAt?.seconds * 1000) > startOfWeek);
-      const monthly = resolvedData.filter(p => p.isPaid && (p.createdAt?.seconds * 1000) > startOfMonth);
-      const pending = resolvedData.filter(p => !p.isPaid);
+      const daily = sortedData.filter(p => p.isPaid && (p.createdAt?.seconds * 1000) >= startOfDay);
+      const monthly = sortedData.filter(p => p.isPaid && (p.createdAt?.seconds * 1000) >= startOfMonth);
+      const pending = sortedData.filter(p => !p.isPaid);
 
       setStats({
         dailyPaid: { count: daily.length, total: daily.reduce((s, p) => s + p.calculatedTotal, 0) },
-        weeklyPaid: { count: weekly.length, total: weekly.reduce((s, p) => s + p.calculatedTotal, 0) },
+        weeklyPaid: { count: 0, total: 0 },
         monthlyPaid: { count: monthly.length, total: monthly.reduce((s, p) => s + p.calculatedTotal, 0) },
         pending: { count: pending.length, total: pending.reduce((s, p) => s + p.calculatedTotal, 0) }
       });
@@ -96,7 +103,6 @@ export default function DoctorRevenueDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Pagination & Filtering Logic
   const filtered = prescriptions.filter(p => 
     (p.patientName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -123,10 +129,8 @@ export default function DoctorRevenueDashboard() {
         </div>
       </div>
 
-      {/* REVENUE CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard title="Daily Paid" count={stats.dailyPaid.count} value={stats.dailyPaid.total} icon={<CheckCircle2 size={20} />} color="emerald" loading={loading} />
-        <StatsCard title="Weekly Paid" count={stats.weeklyPaid.count} value={stats.weeklyPaid.total} icon={<Calendar size={20} />} color="blue" loading={loading} />
         <StatsCard title="Monthly Paid" count={stats.monthlyPaid.count} value={stats.monthlyPaid.total} icon={<LayoutDashboard size={20} />} color="purple" loading={loading} />
         <StatsCard title="Pending" count={stats.pending.count} value={stats.pending.total} icon={<Clock size={20} />} color="amber" loading={loading} />
       </div>
@@ -167,20 +171,21 @@ export default function DoctorRevenueDashboard() {
                     {presc.items.map((med, idx) => (
                       <div key={idx} className="flex flex-col px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                         <span className="text-[10px] font-black uppercase">{med.medicineName}</span>
-                        <span className="text-[9px] font-bold text-slate-400 tracking-tighter">Qty: {med.quantity} • ${med.liveUnitPrice.toFixed(2)} ea</span>
+                        <span className="text-[9px] font-bold text-slate-400 tracking-tighter">Qty: {med.quantity}</span>
                       </div>
                     ))}
                   </div>
                 </TableCell>
                 <TableCell className="text-right pr-8">
-                  <span className="text-2xl font-black text-blue-600 tracking-tighter italic">${presc.calculatedTotal.toFixed(2)}</span>
+                  <span className="text-2xl font-black text-blue-600 tracking-tighter italic">
+                    ${Number(presc.calculatedTotal).toFixed(2)}
+                  </span>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
 
-        {/* PAGINATION CONTROLS */}
         <div className="flex items-center justify-between px-8 py-6 bg-slate-50/50 dark:bg-slate-800/20">
           <p className="text-[11px] font-bold text-slate-400 uppercase">Page {currentPage} of {totalPages || 1}</p>
           <div className="flex gap-2">

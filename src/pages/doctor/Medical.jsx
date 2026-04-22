@@ -2,11 +2,10 @@ import React, { useEffect, useState } from "react";
 import { db, auth } from "../../firebase";
 import { 
   collection, getDocs, doc, getDoc, query, where, 
-  addDoc, updateDoc, deleteDoc, serverTimestamp, orderBy 
+  addDoc, updateDoc, deleteDoc, serverTimestamp 
 } from "firebase/firestore";
 
 // UI Components
-// fix casing
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,7 @@ import {
   DialogFooter, 
   DialogTrigger 
 } from "@/components/ui/dialog";
-import { Search, Trash2, Edit3, Plus, Package, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Search, Trash2, Edit3, Plus, Package, ChevronLeft, ChevronRight, Loader2, Building2, LayoutGrid } from "lucide-react";
 
 export default function Medical() {
   const [userData, setUserData] = useState(null);
@@ -62,7 +61,6 @@ export default function Medical() {
     try {
       let q = collection(db, "branch_medicines");
       if (userData.role !== "admin") {
-        // Halkan hubi in userData.branch uu yahay magacii saxda ahaa
         q = query(q, where("branchId", "==", userData.branch));
       }
       const snap = await getDocs(q);
@@ -79,15 +77,19 @@ export default function Medical() {
 
   useEffect(() => { if (userData) fetchStock(); }, [userData]);
 
+  // ✅ XISAABINTA TOTAL-KA BRANCH KASTA (Medicine Count)
+  const branchStats = stock.reduce((acc, curr) => {
+    const bName = curr.branchId || "Unknown";
+    acc[bName] = (acc[bName] || 0) + 1;
+    return acc;
+  }, {});
+
   const handleSubmit = async () => {
     if (!form.medicineName || !form.quantity || !form.unitPrice || !form.branchId) {
       return alert("Fadlan buuxi meelaha banaan!");
     }
 
-    // --- FIX: RAADI MAGACA BRANCH-KA EE U DHIGMA ID-GAN ---
     const selectedBranch = branches.find(b => b.id === form.branchId);
-    // Haddii uu yahay admin, wuxuu dooranayaa branchId (ID), markaas magaciisa ayaan raadinaynaa
-    // Haddii uu yahay user caadi ah, waxaa dhici karta inuu horay magac u ahaa
     const branchToSave = selectedBranch ? (selectedBranch.branchName || selectedBranch.name) : form.branchId;
 
     setIsSubmitting(true);
@@ -97,7 +99,7 @@ export default function Medical() {
         quantity: parseFloat(form.quantity),
         unitPrice: parseFloat(form.unitPrice),
         price: parseFloat(form.quantity) * parseFloat(form.unitPrice),
-        branchId: branchToSave, // ✅ Hadda waa magacii (e.g., "Hargeisa") ee ma ahan ID-gii koodka ahaa
+        branchId: branchToSave, 
         updatedAt: serverTimestamp()
       };
       
@@ -116,20 +118,37 @@ export default function Medical() {
   };
 
   const filteredStock = stock.filter(item => 
-    item.medicineName?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.medicineName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.branchId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredStock.length / itemsPerPage) || 1;
   const currentItems = filteredStock.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-slate-50/30 min-h-screen">
+      
+      {/* ✅ QAYBTA CARD-YADA: Branch kasta iyo inta dawo u taal */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {Object.entries(branchStats).map(([name, count]) => (
+          <div key={name} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 transition-transform hover:scale-[1.02]">
+            <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <Building2 size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{name}</p>
+              <h3 className="text-xl font-black text-slate-800 leading-none">{count} <span className="text-xs font-bold text-slate-500">DAWO</span></h3>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 gap-4">
         <div className="flex items-center gap-4">
           <div className="p-4 bg-indigo-50 rounded-3xl text-indigo-600 shadow-inner"><Package size={28} /></div>
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800">Inventory</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Latest items on top</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Search medicine or branch name</p>
           </div>
         </div>
         
@@ -137,7 +156,7 @@ export default function Medical() {
           <div className="relative w-full md:w-80">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
-              placeholder="Search stock..." 
+              placeholder="Search..." 
               className="pl-12 rounded-full bg-slate-100 border-none h-12"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -199,8 +218,9 @@ export default function Medical() {
       </div>
 
       <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-50 min-h-[400px]">
-        <div className="grid grid-cols-5 p-6 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">
+        <div className="grid grid-cols-6 p-6 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">
           <div className="pl-4">Medicine</div>
+          <div className="text-center">Branch</div>
           <div className="text-center">Stock</div>
           <div className="text-center">Unit Price</div>
           <div className="text-center text-indigo-600">Total Value</div>
@@ -214,21 +234,25 @@ export default function Medical() {
             const totalStockValue = qty * uPrice;
 
             return (
-              <div key={item.id} className="grid grid-cols-5 p-6 items-center hover:bg-indigo-50/20 transition-all">
+              <div key={item.id} className="grid grid-cols-6 p-6 items-center hover:bg-indigo-50/20 transition-all">
                 <div className="pl-4 font-black text-slate-700 uppercase text-sm">{item.medicineName}</div>
+                <div className="text-center">
+                   <div className="flex items-center justify-center gap-1.5 font-bold text-slate-500 uppercase text-[10px]">
+                      <Building2 size={12} className="text-indigo-400" />
+                      {item.branchId || "N/A"}
+                   </div>
+                </div>
                 <div className="text-center">
                     <Badge className="bg-indigo-50 text-indigo-600 border-none font-black px-4 py-1.5 rounded-xl text-[10px]">{qty} PCS</Badge>
                 </div>
                 <div className="text-center font-bold text-slate-500 text-sm">${uPrice.toFixed(2)}</div>
                 <div className="text-center font-black text-indigo-900 text-lg">${totalStockValue.toFixed(2)}</div>
-
                 <div className="flex justify-end gap-2 pr-4">
                   <Button variant="ghost" size="icon" onClick={() => { 
                       setEditId(item.id); 
                       setForm(item); 
                       setIsDialogOpen(true); 
                   }} className="text-indigo-500 h-10 w-10 hover:bg-indigo-50 rounded-xl"><Edit3 size={18} /></Button>
-                  
                   <Button variant="ghost" size="icon" onClick={() => { 
                     if(confirm("Ma tirtirtaa?")) {
                       deleteDoc(doc(db, "branch_medicines", item.id)).then(fetchStock);

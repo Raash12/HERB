@@ -3,6 +3,7 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 import logoImg from "../assets/logo.jpeg";
 
 export const handleInvoicePrint = async (patient, visit) => {
+
   const HARDCODED_NAME = "HORSEED WATCH AND OPTICAL";
   const HARDCODED_EMAIL = "horseedaye@gmail.com";
 
@@ -17,9 +18,11 @@ export const handleInvoicePrint = async (patient, visit) => {
   let fetchedDoctor = visit.doctorName || "General";
   let fetchedPhone = patient.phone || "N/A";
   let fetchedState = patient.state || "N/A";
-  let fetchedDistrict = patient.address || "N/A"; // District-ka caadiyan 'address' ayaad u isticmaashaa
+  let fetchedDistrict = patient.address || "N/A";
 
   try {
+
+    // ✅ 1. Patient Data
     const patientId = patient.id || visit.patientId;
     if (patientId) {
       const patientDoc = await getDoc(doc(db, "patients", patientId));
@@ -27,11 +30,39 @@ export const handleInvoicePrint = async (patient, visit) => {
         const pData = patientDoc.data();
         fetchedDept = pData.lastDept || pData.department || fetchedDept;
         fetchedDoctor = pData.doctorName || fetchedDoctor;
-        fetchedPhone = pData.phone || fetchedPhone;
+        fetchedPhone = pData.phone || pData.telephone || pData.phoneNo || fetchedPhone;
         fetchedState = pData.state || fetchedState;
         fetchedDistrict = pData.address || fetchedDistrict;
       }
     }
+
+    // ✅ 2. Branch Data (KAN AYAAN SAXNAY)
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const userBranchName = userDoc.data().branch;
+
+        const q = query(collection(db, "branches"), where("name", "==", userBranchName));
+        const branchSnap = await getDocs(q);
+
+        if (!branchSnap.empty) {
+          const actualBranchData = branchSnap.docs[0].data();
+
+          branchInfo.location = actualBranchData.location || branchInfo.location;
+
+          branchInfo.phone =
+            actualBranchData.phone ||
+            actualBranchData.telephone ||
+            actualBranchData.phoneNo ||
+            branchInfo.phone;
+
+          // haddii aad rabto email DB:
+          // branchInfo.email = actualBranchData.email || HARDCODED_EMAIL;
+        }
+      }
+    }
+
   } catch (error) {
     console.error("Error fetching data:", error);
   }
@@ -49,10 +80,7 @@ export const handleInvoicePrint = async (patient, visit) => {
       <head>
         <title>Invoice - ${patient.fullName}</title>
         <style>
-          @page { 
-            size: 80mm auto; 
-            margin: 0; 
-          }
+          @page { size: 80mm auto; margin: 0; }
           body {
             font-family: 'Arial', sans-serif;
             width: 72mm;
@@ -64,16 +92,15 @@ export const handleInvoicePrint = async (patient, visit) => {
           .text-center { text-align: center; }
           .uppercase { text-transform: uppercase; }
           .bold { font-weight: 900; }
-          
-          .header {
-            margin-bottom: 8px;
-            text-align: center;
-          }
+
+          .header { margin-bottom: 8px; text-align: center; }
+
           .hospital-name {
             font-size: 19px;
             font-weight: 900;
             margin-bottom: 4px;
           }
+
           .contact-info {
             font-size: 12px;
             font-weight: bold;
@@ -85,7 +112,6 @@ export const handleInvoicePrint = async (patient, visit) => {
             margin: 12px 0;
             border-bottom: 2px solid #000;
             padding-bottom: 4px;
-            display: block;
             width: 100%;
           }
 
@@ -93,18 +119,14 @@ export const handleInvoicePrint = async (patient, visit) => {
             font-size: 14px;
             margin-bottom: 15px;
           }
+
           .info-row {
             margin-bottom: 6px;
             display: flex;
           }
-          .label {
-            width: 90px;
-            font-weight: 900;
-          }
-          .value {
-            flex: 1;
-            font-weight: bold;
-          }
+
+          .label { width: 90px; font-weight: 900; }
+          .value { flex: 1; font-weight: bold; }
 
           .total-section {
             margin-top: 15px;
@@ -113,16 +135,10 @@ export const handleInvoicePrint = async (patient, visit) => {
             padding: 10px 0;
             display: flex;
             justify-content: space-between;
-            align-items: center;
           }
-          .total-label {
-            font-size: 15px;
-            font-weight: 900;
-          }
-          .total-amount {
-            font-size: 22px;
-            font-weight: 900;
-          }
+
+          .total-label { font-size: 15px; font-weight: 900; }
+          .total-amount { font-size: 22px; font-weight: 900; }
 
           .footer {
             margin-top: 25px;
@@ -130,22 +146,17 @@ export const handleInvoicePrint = async (patient, visit) => {
             font-size: 13px;
             font-weight: bold;
           }
-          .signature-area {
-            text-align: left;
-            font-size: 11px;
-            font-weight: 900;
-            margin-bottom: 15px;
-          }
         </style>
       </head>
+
       <body>
-  
+
         <div class="header">
           <div class="hospital-name uppercase">${branchInfo.name}</div>
           <div class="contact-info uppercase">
-            ABU HUREYRA<br>
+            ${branchInfo.location}<br>
             TEL: ${branchInfo.phone}<br>
-            EMAIL: ${HARDCODED_EMAIL}
+            EMAIL: ${branchInfo.email}
           </div>
         </div>
 
@@ -178,10 +189,11 @@ export const handleInvoicePrint = async (patient, visit) => {
             }, 300); 
           };
         </script>
+
       </body>
     </html>
   `;
-  
+
   printWindow.document.write(htmlContent);
   printWindow.document.close();
 };

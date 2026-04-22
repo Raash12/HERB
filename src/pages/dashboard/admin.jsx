@@ -5,10 +5,12 @@ import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 
 // COMPONENTS
-// Ka bixi dashboard folder (..), gal doctor folder, ka dib medical
-import Medical from "../doctor/Medical"; // 'M' weyn ka dhig halkaan
+import Medical from "../doctor/Medical"; 
 import MedicalReport from "../../report/medicalReport";
 import OpticalReport from "../../report/opticalReport";
+
+// Halkan ayaan ku saxay Path-ka sxb
+import AdminPatients from "../reception/AdminPatients"; 
 
 // UI COMPONENTS
 import {
@@ -24,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 // ICONS
 import {
   Users, Loader2, X, Search, ChevronLeft, ChevronRight,
-  LayoutDashboard, Sun, Moon, Lock, LogOut, Building2, Activity, Trash2, Edit3, KeyRound, FileText, Eye
+  LayoutDashboard, Sun, Moon, Lock, LogOut, Building2, Activity, Trash2, Edit3, KeyRound, FileText, Eye, UserRoundSearch
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -33,6 +35,7 @@ export default function AdminDashboard() {
   const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
   const [stockCount, setStockCount] = useState(0); 
+  const [patientCount, setPatientCount] = useState(0); 
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
@@ -56,10 +59,12 @@ export default function AdminDashboard() {
       const bSnap = await getDocs(collection(db, "branches"));
       const uSnap = await getDocs(collection(db, "users"));
       const sSnap = await getDocs(collection(db, "branch_medicines"));
+      const pSnap = await getDocs(collection(db, "patients")); 
 
       setBranches(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setUsers(uSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStockCount(sSnap.size); 
+      setPatientCount(pSnap.size); 
     } catch (err) {
       console.error(err);
     } finally {
@@ -151,7 +156,13 @@ export default function AdminDashboard() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             
-            {/* MEDICAL STOCK SIDELINK */}
+            {/* PATIENTS SIDEBAR LINK */}
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive={activeView === "patients"} onClick={() => setActiveView("patients")}>
+                <UserRoundSearch size={18} className="text-blue-600" /> <span className="font-bold text-xs uppercase tracking-wider">Patients Registry</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "medical"} onClick={() => setActiveView("medical")}>
                 <Activity size={18} className="text-blue-500" /> <span className="font-bold text-xs uppercase tracking-wider">Medical Stock</span>
@@ -205,7 +216,7 @@ export default function AdminDashboard() {
 
           {/* DASHBOARD OVERVIEW */}
           {activeView === "dashboard" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in">
               <Card className="p-8 rounded-[1.5rem] bg-white dark:bg-slate-900 border-none shadow-sm">
                 <Building2 className="text-blue-600 mb-2" size={28} />
                 <p className="text-[10px] font-black uppercase text-slate-400">Branches</p>
@@ -216,13 +227,21 @@ export default function AdminDashboard() {
                 <p className="text-[10px] font-black uppercase text-slate-400">Total Staff</p>
                 <h3 className="text-3xl font-black">{users.length}</h3>
               </Card>
+              <Card className="p-8 rounded-[1.5rem] bg-white dark:bg-slate-900 border-none shadow-sm cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setActiveView("patients")}>
+                <UserRoundSearch className="text-blue-600 mb-2" size={28} />
+                <p className="text-[10px] font-black uppercase text-slate-400">Total Patients</p>
+                <h3 className="text-3xl font-black">{patientCount}</h3>
+              </Card>
               <Card className="p-8 rounded-[1.5rem] bg-blue-600 text-white border-none shadow-sm cursor-pointer" onClick={() => setActiveView("medical")}>
                 <Activity className="mb-2" size={28} />
-                <p className="text-[10px] font-black uppercase opacity-80">Pharmacy Stock Items</p>
-                <h3 className="text-xl font-black">Manage {stockCount} Items →</h3>
+                <p className="text-[10px] font-black uppercase opacity-80">Pharmacy Items</p>
+                <h3 className="text-xl font-black">{stockCount} Items →</h3>
               </Card>
             </div>
           )}
+
+          {/* Halkan ayaan ku daray Component-gii AdminPatients */}
+          {activeView === "patients" && <AdminPatients />}
 
           {/* MEDICAL STOCK VIEW */}
           {activeView === "medical" && <Medical />}
