@@ -18,11 +18,15 @@ import OpticalPrescriptionPage from "./OpticalPrescriptionPage";
 import HistorySheet from "./HistorySheet";
 
 // Icons
-import { Loader2, Search, Pill, Trash2, Glasses, User, History, Calendar } from "lucide-react";
+import { 
+  Loader2, Search, Pill, Trash2, Glasses, 
+  User, History, Calendar, XCircle 
+} from "lucide-react";
 
 export default function DoctorAppointments() {
   const [visits, setVisits] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchDate, setSearchDate] = useState(""); // Date search state
   const [loading, setLoading] = useState(true);
   const [visitCounts, setVisitCounts] = useState({});
   
@@ -35,7 +39,7 @@ export default function DoctorAppointments() {
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [selectedPatientName, setSelectedPatientName] = useState("");
 
-  // Tirinta Booqashooyinka
+  // Fetch Visit Counts for Badges
   const fetchVisitCounts = async (uniqueList) => {
     const counts = { ...visitCounts };
     for (const patient of uniqueList) {
@@ -64,7 +68,7 @@ export default function DoctorAppointments() {
       if (!snap.empty) {
         const rawData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // LOGIC: Hal bukaan hal saf (No duplicates)
+        // LOGIC: Unique patients only
         const uniquePatients = [];
         const seenPatientIds = new Set();
 
@@ -86,6 +90,17 @@ export default function DoctorAppointments() {
     return () => unsubscribe();
   }, []);
 
+  // Combined Filter Logic (Name + Date)
+  const filteredVisits = visits.filter(v => {
+    const matchesName = v.patientName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Format Firebase timestamp to YYYY-MM-DD for comparison
+    const visitDate = v.createdAt?.toDate().toISOString().split('T')[0]; 
+    const matchesDate = searchDate === "" || visitDate === searchDate;
+
+    return matchesName && matchesDate;
+  });
+
   const handleAction = async (visit, type) => {
     setActionLoading({ id: visit.id, type });
     setTimeout(() => {
@@ -103,27 +118,57 @@ export default function DoctorAppointments() {
     }, 400);
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen">
+      <Loader2 className="animate-spin text-blue-600" size={40} />
+    </div>
+  );
 
   return (
     <div className="p-8 space-y-8 bg-slate-50 min-h-screen font-sans">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      
+      {/* HEADER & FILTERS */}
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h2 className="font-black text-5xl tracking-tighter uppercase text-blue-600">Appointments</h2>
           <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-blue-50 inline-block">
-            Unique Patient List
+            {filteredVisits.length} Records Found
           </p>
         </div>
-        <div className="relative group w-full md:w-auto">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-400" size={20} />
-          <Input 
-            placeholder="Search patient name..." 
-            className="w-full md:w-96 pl-14 h-16 bg-white rounded-[1.5rem] border-none shadow-2xl font-bold uppercase text-[12px]" 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-          />
+
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
+          {/* Text Search */}
+          <div className="relative group w-full md:w-80">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
+            <input 
+              placeholder="SEARCH PATIENT..." 
+              className="w-full pl-12 h-14 bg-white rounded-2xl border-none shadow-lg font-black uppercase text-[11px] focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
+          </div>
+
+          {/* Date Search */}
+          <div className="relative group w-full md:w-56">
+            <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
+            <input 
+              type="date"
+              value={searchDate}
+              className="w-full pl-12 h-14 bg-white rounded-2xl border-none shadow-lg font-black uppercase text-[11px] cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              onChange={(e) => setSearchDate(e.target.value)} 
+            />
+            {searchDate && (
+              <button 
+                onClick={() => setSearchDate("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500"
+              >
+                <XCircle size={16} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* APPOINTMENTS TABLE */}
       <div className="max-w-6xl mx-auto bg-white rounded-[3rem] shadow-sm border border-blue-50/50 overflow-hidden">
         <Table>
           <TableHeader className="bg-blue-600">
@@ -134,67 +179,80 @@ export default function DoctorAppointments() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visits.filter(v => v.patientName.toLowerCase().includes(searchTerm.toLowerCase())).map(v => (
-              <TableRow key={v.patientId} className="hover:bg-blue-50/20 transition-all border-slate-50">
-                <TableCell className="py-7 pl-12">
-                  <div className="flex items-center gap-5">
-                    <div className="bg-blue-100/50 p-4 rounded-2xl text-blue-600 shadow-inner">
-                      <User size={24} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-black uppercase text-[17px] tracking-tight text-slate-800">{v.patientName}</div>
-                        <Badge className="bg-blue-600 text-white text-[9px] h-5 px-2 rounded-full">
-                           #{visitCounts[v.patientId] || 1}
-                        </Badge>
+            {filteredVisits.length > 0 ? (
+              filteredVisits.map((v) => (
+                <TableRow key={v.id} className="hover:bg-blue-50/20 transition-all border-slate-50">
+                  <TableCell className="py-7 pl-12">
+                    <div className="flex items-center gap-5">
+                      <div className="bg-blue-100/50 p-4 rounded-2xl text-blue-600 shadow-inner">
+                        <User size={24} />
                       </div>
-                      <div className="text-[11px] text-blue-500 font-bold mt-1 uppercase flex items-center gap-2">
-                        <span>{v.phone}</span>
-                        <span className="text-slate-300">•</span>
-                        <span className="flex items-center gap-1"><Calendar size={10}/> {v.createdAt?.toDate().toLocaleDateString()}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-black uppercase text-[17px] tracking-tight text-slate-800">{v.patientName}</div>
+                          <Badge className="bg-blue-600 text-white text-[9px] h-5 px-2 rounded-full">
+                             #{visitCounts[v.patientId] || 1}
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] text-blue-500 font-bold mt-1 uppercase flex items-center gap-2">
+                          <span>{v.phone}</span>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex items-center gap-1">
+                            <Calendar size={10}/> {v.createdAt?.toDate().toLocaleDateString('en-GB')}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </TableCell>
+                  </TableCell>
 
-                {/* STATUS BADGE - Dib ayaa loo soo celiyey */}
-                <TableCell className="text-center">
-                   <Badge className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-none ${
-                      v.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 
-                      v.status === 'processing' ? 'bg-blue-50 text-blue-600' : 
-                      'bg-orange-50 text-orange-600'
-                    }`}>
-                    {v.status || 'pending'}
-                  </Badge>
-                </TableCell>
+                  <TableCell className="text-center">
+                     <Badge className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-none ${
+                        v.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 
+                        v.status === 'processing' ? 'bg-blue-50 text-blue-600' : 
+                        'bg-orange-50 text-orange-600'
+                      }`}>
+                      {v.status || 'pending'}
+                    </Badge>
+                  </TableCell>
 
-                <TableCell className="text-right pr-12">
-                  <div className="flex items-center justify-end gap-3">
-                    <Button variant="ghost" disabled={actionLoading.id === v.id} className="h-12 w-12 rounded-2xl text-slate-400 border border-slate-100 hover:bg-slate-100" onClick={() => handleAction(v, 'history')}>
-                      {actionLoading.id === v.id && actionLoading.type === 'history' ? <Loader2 className="animate-spin" size={18} /> : <History size={18} />}
-                    </Button>
+                  <TableCell className="text-right pr-12">
+                    <div className="flex items-center justify-end gap-3">
+                      <Button variant="ghost" disabled={actionLoading.id === v.id} className="h-12 w-12 rounded-2xl text-slate-400 border border-slate-100 hover:bg-slate-100" onClick={() => handleAction(v, 'history')}>
+                        {actionLoading.id === v.id && actionLoading.type === 'history' ? <Loader2 className="animate-spin" size={18} /> : <History size={18} />}
+                      </Button>
 
-                    <Button variant="ghost" disabled={actionLoading.id === v.id} className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white" onClick={() => handleAction(v, 'meds')}>
-                      {actionLoading.id === v.id && actionLoading.type === 'meds' ? <Loader2 className="animate-spin mr-2" size={16} /> : <Pill size={16} className="mr-2" />}
-                      Meds
-                    </Button>
-                    
-                    <Button variant="ghost" disabled={actionLoading.id === v.id} className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white" onClick={() => handleAction(v, 'optical')}>
-                      {actionLoading.id === v.id && actionLoading.type === 'optical' ? <Loader2 className="animate-spin mr-2" size={16} /> : <Glasses size={16} className="mr-2" />}
-                      Optical
-                    </Button>
+                      <Button variant="ghost" disabled={actionLoading.id === v.id} className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white" onClick={() => handleAction(v, 'meds')}>
+                        {actionLoading.id === v.id && actionLoading.type === 'meds' ? <Loader2 className="animate-spin mr-2" size={16} /> : <Pill size={16} className="mr-2" />}
+                        Meds
+                      </Button>
+                      
+                      <Button variant="ghost" disabled={actionLoading.id === v.id} className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white" onClick={() => handleAction(v, 'optical')}>
+                        {actionLoading.id === v.id && actionLoading.type === 'optical' ? <Loader2 className="animate-spin mr-2" size={16} /> : <Glasses size={16} className="mr-2" />}
+                        Optical
+                      </Button>
 
-                    <Button variant="ghost" className="h-12 w-12 rounded-2xl text-red-300 hover:text-red-600" onClick={async () => { if(window.confirm("Ma hubtaa?")) await deleteDoc(doc(db, "visits", v.id)) }}>
-                      <Trash2 size={18} />
-                    </Button>
+                      <Button variant="ghost" className="h-12 w-12 rounded-2xl text-red-300 hover:text-red-600" onClick={async () => { if(window.confirm("Are you sure?")) await deleteDoc(doc(db, "visits", v.id)) }}>
+                        <Trash2 size={18} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="py-20 text-center">
+                  <div className="flex flex-col items-center opacity-20">
+                    <Search size={40} className="mb-2" />
+                    <p className="font-black text-slate-900 uppercase tracking-widest text-xs">No Records Found</p>
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
 
+      {/* DIALOGS FOR ACTIONS */}
       <Dialog open={medicalOpen} onOpenChange={setMedicalOpen}>
         <DialogContent className="sm:max-w-[700px] p-0 border-none rounded-[2rem] overflow-hidden shadow-2xl">
            <MedicalPrescription activeVisit={activeVisit} onClose={() => setMedicalOpen(false)} />
@@ -214,6 +272,7 @@ export default function DoctorAppointments() {
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
