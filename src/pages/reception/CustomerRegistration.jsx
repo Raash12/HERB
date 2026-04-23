@@ -12,8 +12,41 @@ import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, Printer, ChevronLeft, ChevronRight, CheckCircle2, Calendar, Pencil, Trash2 } from "lucide-react";
 
-const BANAADIR_DISTRICTS = ["Cabdiasiis", "Boondheere", "Dayniile", "Dharkeenley", "Hamar Jajab", "Hamar Weyne", "Hodan", "Howlwadaag", "Huriwaa", "Kaaraan", "Kaxda", "Shangaani", "Shibis", "Waaberi", "Wadajir", "Wardhiigley", "Warta Nabada", "Yaaqshiid", "Garasbaaley", "Gubadley"];
-const SOMALI_STATES = ["Banaadir", "Galmudug", "Puntland", "Jubaland", "Hirshabelle", "Koofur Galbeed", "Somaliland", "Waqoyi Bari"];
+const SOMALIA_DISTRICTS = {
+  Banaadir: [
+    "Cabdiasiis","Boondheere","Dayniile","Dharkeenley","Hamar Jajab","Hamar Weyne",
+    "Hodan","Howlwadaag","Huriwaa","Kaaraan","Kaxda","Shangaani","Shibis",
+    "Waaberi","Wadajir","Wardhiigley","Warta Nabada","Yaaqshiid","Garasbaaley","Gubadley"
+  ],
+
+  Hirshabelle: [
+    "Jowhar","Balcad","Mahaday","Adan Yabaal","Beledweyne","Buulo Burte","Jalalaqsi","Matabaan"
+  ],
+
+  Puntland: [
+    "Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla"
+  ],
+
+  Jubaland: [
+    "Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley"
+  ],
+
+  Galmudug: [
+    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale"
+  ],
+
+  "Koofur Galbeed": [
+    "Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye"
+  ],
+
+  Somaliland: [
+    "Hargeisa","Berbera","Burao","Borama","Erigavo","Las Anod"
+  ],
+
+  "Waqoyi Bari": [
+    "Laascaanood","Taleex","Xudun"
+  ]
+};const SOMALI_STATES = ["Banaadir", "Galmudug", "Puntland", "Jubaland", "Hirshabelle", "Koofur Galbeed", "Somaliland", "Waqoyi Bari"];
 
 export default function CustomerRegistration() {
   const [loading, setLoading] = useState(false);
@@ -92,6 +125,7 @@ export default function CustomerRegistration() {
   };
 
   const handleResend = async (e) => {
+    
     e.preventDefault();
     setLoading(true);
     try {
@@ -212,7 +246,17 @@ export default function CustomerRegistration() {
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-blue-600 text-blue-600" onClick={() => { setSelectedPatient(p); setFormData({...p, department: p.lastDept || ""}); setEditOpen(true); }}><Pencil size={14}/></Button>
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-red-600 text-red-600" onClick={() => handleDelete(p.id)}><Trash2 size={14}/></Button>
                     <Button variant="outline" size="sm" className="h-8 px-2 border-green-600 text-green-600 text-[10px] font-bold" onClick={() => handleInvoicePrint(p, { amount: p.lastAmount || 0, department: p.lastDept || 'General', doctorName: p.doctorName || 'MD' })}><Printer size={14} className="mr-1"/> INVOICE</Button>
-                    <Button size="sm" className="bg-indigo-600 h-8 px-2 text-[10px] font-bold" onClick={() => { setSelectedPatient(p); setResendOpen(true); }}><RefreshCcw size={14} className="mr-1"/> RESEND</Button>
+                    <Button size="sm" className="bg-indigo-600 h-8 px-2 text-[10px] font-bold" onClick={() => { 
+  setSelectedPatient(p);
+ setFormData(prev => ({
+  ...prev,
+  department: "",
+  amount: "",
+  doctorId: "",
+  doctorName: ""
+}));
+  setResendOpen(true);
+}}><RefreshCcw size={14} className="mr-1"/> RESEND</Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -231,70 +275,384 @@ export default function CustomerRegistration() {
       </Card>
 
       {/* NEW PATIENT DIALOG */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle className="text-2xl font-black text-blue-600 uppercase">New Patient</DialogTitle></DialogHeader>
-          <form onSubmit={handleRegisterNew} className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><label className="text-[10px] font-black uppercase">Full Name</label><Input value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} required /></div>
-            <div><label className="text-[10px] font-black uppercase">Age</label><Input type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required /></div>
-            <div><label className="text-[10px] font-black uppercase">Gender</label><select className="w-full p-2 border rounded-md text-sm" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} required><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-            <div><label className="text-[10px] font-black uppercase">Phone</label><Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required /></div>
-            <div><label className="text-[10px] font-black uppercase">State</label><select className="w-full p-2 border rounded-md text-sm" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})} required><option value="">Select State</option>{SOMALI_STATES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-            <div className="col-span-2"><label className="text-[10px] font-black uppercase">District</label><select className="w-full p-2 border rounded-md text-sm" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required><option value="">Select District</option>{BANAADIR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-            <div className="col-span-2 grid grid-cols-3 gap-3 border-t pt-4">
-              <div><label className="text-[10px] font-black uppercase">Dept</label><select className="w-full p-2 border rounded-md text-sm" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required><option value="">Select</option><option value="Eye">Eye</option><option value="Ear">Ear</option></select></div>
-              <div><label className="text-[10px] font-black uppercase">Doctor</label><select className="w-full p-2 border rounded-md text-sm" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({...formData, doctorId: e.target.value, doctorName: d?.fullName || ""}) }} required><option value="">Select</option>{doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}</select></div>
-              <div><label className="text-[10px] font-black uppercase text-red-600">Amount ($)</label><Input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required /></div>
-            </div>
-            <Button type="submit" className="col-span-2 bg-blue-600 h-12 font-black uppercase" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+   {/* NEW PATIENT DIALOG */}
+<Dialog open={open} onOpenChange={setOpen}>
+  <DialogContent className="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle className="text-2xl font-black text-blue-600 uppercase">
+        New Patient
+      </DialogTitle>
+    </DialogHeader>
 
-      {/* EDIT DIALOG */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle className="text-2xl font-black text-blue-600 uppercase">Edit Patient</DialogTitle></DialogHeader>
-          <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><label className="text-[10px] font-black uppercase">Full Name</label><Input value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} required /></div>
-            <div><label className="text-[10px] font-black uppercase">Age</label><Input type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required /></div>
-            <div><label className="text-[10px] font-black uppercase">Gender</label><select className="w-full p-2 border rounded-md text-sm" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} required><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-            <div><label className="text-[10px] font-black uppercase">Phone</label><Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required /></div>
-            <div><label className="text-[10px] font-black uppercase">State</label><select className="w-full p-2 border rounded-md text-sm" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})} required><option value="">Select State</option>{SOMALI_STATES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-            <div className="col-span-2"><label className="text-[10px] font-black uppercase">District</label><select className="w-full p-2 border rounded-md text-sm" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required><option value="">Select District</option>{BANAADIR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-            
-            {/* Eye/Ear Edit Lagu daray */}
-            <div className="col-span-2"><label className="text-[10px] font-black uppercase text-blue-600">Department (Current: {selectedPatient?.lastDept})</label>
-              <select className="w-full p-2 border rounded-md text-sm font-bold" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required>
-                <option value="">Select Department</option>
-                <option value="Eye">Eye</option>
-                <option value="Ear">Ear</option>
-              </select>
-            </div>
+    <form onSubmit={handleRegisterNew} className="grid grid-cols-2 gap-4">
+      
+      <div className="col-span-2">
+        <label className="text-[10px] font-black uppercase">Full Name</label>
+        <Input
+          value={formData.fullName}
+          onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+          required
+        />
+      </div>
 
-            <Button type="submit" className="col-span-2 bg-blue-600 h-12 font-black uppercase mt-2" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : "UPDATE PROFILE"}</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <div>
+        <label className="text-[10px] font-black uppercase">Age</label>
+        <Input
+          type="number"
+          value={formData.age}
+          onChange={e => setFormData({ ...formData, age: e.target.value })}
+          required
+        />
+      </div>
 
-      {/* RESEND DIALOG */}
-      <Dialog open={resendOpen} onOpenChange={setResendOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="text-xl font-black text-indigo-600">RETURNING VISIT</DialogTitle></DialogHeader>
-          <div className="bg-indigo-50 p-4 rounded-lg">
-              <h3 className="font-bold">{selectedPatient?.fullName}</h3>
-              <Badge className="mt-2 bg-indigo-600">Visit #{(selectedPatient?.visitCount || 1) + 1}</Badge>
+      <div>
+        <label className="text-[10px] font-black uppercase">Gender</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.gender}
+          onChange={e => setFormData({ ...formData, gender: e.target.value })}
+          required
+        >
+          <option value="">Select</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase">Phone</label>
+        <Input
+          value={formData.phone}
+          onChange={e => setFormData({ ...formData, phone: e.target.value })}
+          required
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase">State</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.state}
+          onChange={e =>
+            setFormData({
+              ...formData,
+              state: e.target.value,
+              address: "" // reset district
+            })
+          }
+          required
+        >
+          <option value="">Select State</option>
+          {SOMALI_STATES.map(s => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="col-span-2">
+        <label className="text-[10px] font-black uppercase">District</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.address}
+          onChange={e =>
+            setFormData({ ...formData, address: e.target.value })
+          }
+          required
+        >
+          <option value="">Select District</option>
+          {SOMALIA_DISTRICTS[formData.state]?.map(d => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="col-span-2 grid grid-cols-3 gap-3 border-t pt-4">
+        <div>
+          <label className="text-[10px] font-black uppercase">Dept</label>
+          <select
+            className="w-full p-2 border rounded-md text-sm"
+            value={formData.department}
+            onChange={e =>
+              setFormData({ ...formData, department: e.target.value })
+            }
+            required
+          >
+            <option value="">Select</option>
+            <option value="Eye">Eye</option>
+            <option value="Ear">Ear</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase">Doctor</label>
+          <select
+            className="w-full p-2 border rounded-md text-sm"
+            value={formData.doctorId}
+            onChange={e => {
+              const d = doctors.find(x => x.id === e.target.value);
+              setFormData({
+                ...formData,
+                doctorId: e.target.value,
+                doctorName: d?.fullName || ""
+              });
+            }}
+            required
+          >
+            <option value="">Select</option>
+            {doctors.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.fullName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase text-red-600">
+            Amount ($)
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            value={formData.amount}
+            onChange={e =>
+              setFormData({ ...formData, amount: e.target.value })
+            }
+            required
+          />
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        className="col-span-2 bg-blue-600 h-12 font-black uppercase"
+        disabled={loading}
+      >
+        {loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}
+      </Button>
+    </form>
+  </DialogContent>
+</Dialog>
+
+
+{/* RESEND / RETURNING VISIT DIALOG */}
+<Dialog open={resendOpen} onOpenChange={setResendOpen}>
+  <DialogContent className="max-w-md rounded-2xl">
+
+    <DialogHeader>
+      <DialogTitle className="text-xl font-black text-indigo-600 uppercase">
+        Returning Visit
+      </DialogTitle>
+    </DialogHeader>
+
+    {selectedPatient && (
+      <form onSubmit={handleResend} className="space-y-4">
+
+        {/* PATIENT INFO */}
+        <div className="bg-slate-100 p-4 rounded-xl">
+          <p className="font-bold">{selectedPatient.fullName}</p>
+          <Badge className="mt-2 bg-indigo-600 text-white">
+            Visit #{(selectedPatient.visitCount || 1) + 1}
+          </Badge>
+        </div>
+
+        {/* DEPARTMENT + AMOUNT */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-black uppercase">Dept</label>
+            <select
+              className="w-full p-2 border rounded-md text-sm"
+              value={formData.department}
+              onChange={e =>
+                setFormData({ ...formData, department: e.target.value })
+              }
+              required
+            >
+              <option value="">Select</option>
+              <option value="Eye">Eye</option>
+              <option value="Ear">Ear</option>
+            </select>
           </div>
-          <form onSubmit={handleResend} className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-[10px] font-black uppercase">Dept</label><select className="w-full p-2 border rounded-md text-sm" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} required><option value="">Select</option><option value="Eye">Eye</option><option value="Ear">Ear</option></select></div>
-                <div><label className="text-[10px] font-black uppercase text-red-600">Amount ($)</label><Input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required /></div>
-              </div>
-              <div><label className="text-[10px] font-black uppercase">Assign Doctor</label><select className="w-full p-2 border rounded-md text-sm" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({...formData, doctorId: e.target.value, doctorName: d?.fullName || ""}) }} required><option value="">Select Doctor</option>{doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.fullName}</option>)}</select></div>
-              <Button type="submit" className="w-full bg-indigo-600 h-12 font-black uppercase" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : "COMPLETE & PRINT"}</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+
+          <div>
+            <label className="text-[10px] font-black uppercase text-red-600">
+              Amount ($)
+            </label>
+            <Input
+              type="number"
+              value={formData.amount}
+              onChange={e =>
+                setFormData({ ...formData, amount: e.target.value })
+              }
+              required
+            />
+          </div>
+        </div>
+
+        {/* DOCTOR */}
+        <div>
+          <label className="text-[10px] font-black uppercase">
+            Assign Doctor
+          </label>
+          <select
+            className="w-full p-2 border rounded-md text-sm"
+            value={formData.doctorId}
+            onChange={e => {
+              const d = doctors.find(x => x.id === e.target.value);
+              setFormData({
+                ...formData,
+                doctorId: e.target.value,
+                doctorName: d?.fullName || ""
+              });
+            }}
+            required
+          >
+            <option value="">Select Doctor</option>
+            {doctors.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.fullName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* BUTTON */}
+        <Button
+          type="submit"
+          className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase"
+          disabled={loading}
+        >
+          {loading ? <Loader2 className="animate-spin" /> : "Complete & Print"}
+        </Button>
+
+      </form>
+    )}
+
+  </DialogContent>
+</Dialog>
+
+
+{/* EDIT DIALOG */}
+<Dialog open={editOpen} onOpenChange={setEditOpen}>
+  <DialogContent className="max-w-xl">
+    <DialogHeader>
+      <DialogTitle className="text-xl font-black text-blue-600 uppercase">
+        Edit Patient
+      </DialogTitle>
+    </DialogHeader>
+
+    <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4">
+
+      <div className="col-span-2">
+        <label className="text-[10px] font-black uppercase">Full Name</label>
+        <Input
+          value={formData.fullName}
+          onChange={e =>
+            setFormData({ ...formData, fullName: e.target.value })
+          }
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase">Age</label>
+        <Input
+          type="number"
+          value={formData.age}
+          onChange={e =>
+            setFormData({ ...formData, age: e.target.value })
+          }
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase">Gender</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.gender}
+          onChange={e =>
+            setFormData({ ...formData, gender: e.target.value })
+          }
+        >
+          <option value="">Select</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase">Phone</label>
+        <Input
+          value={formData.phone}
+          onChange={e =>
+            setFormData({ ...formData, phone: e.target.value })
+          }
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase">State</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.state}
+          onChange={e =>
+            setFormData({
+              ...formData,
+              state: e.target.value,
+              address: ""
+            })
+          }
+        >
+          <option value="">Select State</option>
+          {SOMALI_STATES.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="col-span-2">
+        <label className="text-[10px] font-black uppercase">District</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.address}
+          onChange={e =>
+            setFormData({ ...formData, address: e.target.value })
+          }
+        >
+          <option value="">Select District</option>
+          {SOMALIA_DISTRICTS[formData.state]?.map(d => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="col-span-2">
+        <label className="text-[10px] font-black uppercase">Department</label>
+        <select
+          className="w-full p-2 border rounded-md text-sm"
+          value={formData.department}
+          onChange={e =>
+            setFormData({ ...formData, department: e.target.value })
+          }
+        >
+          <option value="">Select</option>
+          <option value="Eye">Eye</option>
+          <option value="Ear">Ear</option>
+        </select>
+      </div>
+
+      <Button
+        type="submit"
+        className="col-span-2 bg-blue-600 h-12 font-black uppercase"
+      >
+        {loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}
+      </Button>
+    </form>
+  </DialogContent>
+</Dialog>
     </div>
   );
 }
