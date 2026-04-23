@@ -13,11 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import HistorySheet from "./HistorySheet";
 
 // Icons
 import { 
   Loader2, Search, Pill, Trash2, Glasses, ClipboardList, 
-  Stethoscope, User
+  Stethoscope, User , History 
 } from "lucide-react";
 
 export default function DoctorAppointments() {
@@ -27,11 +28,16 @@ export default function DoctorAppointments() {
   const [receptions, setReceptions] = useState([]);
   const [selectedReception, setSelectedReception] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatientName, setSelectedPatientName] = useState(""); 
   // Modal Control States
   const [medicalOpen, setMedicalOpen] = useState(false);
   const [opticalOpen, setOpticalOpen] = useState(false);
   const [activeVisit, setActiveVisit] = useState(null);
+  
+// Add this line
+
 
   // --- PAGINATION STATES ---
   const [firstDoc, setFirstDoc] = useState(null);
@@ -44,7 +50,12 @@ export default function DoctorAppointments() {
   const [diagnosis, setDiagnosis] = useState("");
   const [inventory, setInventory] = useState([]);
   const [prescribedItems, setPrescribedItems] = useState([{ medicineId: "", medicineName: "", quantity: 1, dosage: "" }]);
-
+ const handleOpenHistory = (visit) => {
+  setSelectedPatientId(visit.patientId);
+  // This line fixes the "selectedPatientName is not defined" error
+  setSelectedPatientName(visit.patientName || "Patient"); 
+  setHistoryOpen(true);
+};
   // --- OPTICAL STATES ---
   const [ipd, setIpd] = useState("");
   const [values, setValues] = useState({
@@ -147,7 +158,7 @@ export default function DoctorAppointments() {
 
       await updateDoc(doc(db, "visits", activeVisit.id), { 
         medsSent: true,
-        status: activeVisit.opticalSent ? "completed" : "processing" 
+        status: "processing"
       });
 
       setMedicalOpen(false);
@@ -196,7 +207,7 @@ export default function DoctorAppointments() {
 
       await updateDoc(doc(db, "visits", activeVisit.id), { 
         opticalSent: true, 
-        status: activeVisit.medsSent ? "completed" : "processing" 
+        status: "processing" 
       });
 
       setOpticalOpen(false);
@@ -254,17 +265,30 @@ export default function DoctorAppointments() {
                     {v.status || 'pending'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right pr-12">
-                  <div className="flex items-center justify-end gap-3">
-                    <Button variant="ghost" disabled={v.medsSent} className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white transition-all" onClick={() => handleOpenMeds(v)}>
-                      <Pill size={16} className="mr-2" /> {v.medsSent ? "Sent" : "Meds"}
-                    </Button>
-                    <Button variant="ghost" disabled={v.opticalSent} className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white transition-all" onClick={() => handleOpenOptical(v)}>
-                      <Glasses size={16} className="mr-2" /> {v.opticalSent ? "Sent" : "Optical"}
-                    </Button>
-                    <Button variant="ghost" className="h-12 w-12 rounded-2xl text-red-400" onClick={async () => { if(window.confirm("Sure?")) await deleteDoc(doc(db, "visits", v.id)) }}><Trash2 size={18} /></Button>
-                  </div>
-                </TableCell>
+             <TableCell className="text-right pr-12">
+  <div className="flex items-center justify-end gap-3">
+    {/* NEW HISTORY BUTTON */}
+    <Button 
+      variant="ghost" 
+      className="h-12 w-12 rounded-2xl text-slate-400 border border-slate-100 hover:bg-slate-100 transition-all" 
+      onClick={() => handleOpenHistory(v)}
+    >
+      <History size={18} />
+    </Button>
+
+    <Button variant="ghost" className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white transition-all" onClick={() => handleOpenMeds(v)}>
+      <Pill size={16} className="mr-2" /> Meds
+    </Button>
+    
+    <Button variant="ghost" className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white transition-all" onClick={() => handleOpenOptical(v)}>
+      <Glasses size={16} className="mr-2" /> Optical
+    </Button>
+
+    <Button variant="ghost" className="h-12 w-12 rounded-2xl text-red-400" onClick={async () => { if(window.confirm("Sure?")) await deleteDoc(doc(db, "visits", v.id)) }}>
+      <Trash2 size={18} />
+    </Button>
+  </div>
+</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -351,6 +375,7 @@ export default function DoctorAppointments() {
             </DialogDescription>
           </DialogHeader>
           
+          
           <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto bg-white">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 p-4 rounded-xl border border-blue-50">
@@ -396,8 +421,26 @@ export default function DoctorAppointments() {
             </div>
             <Button disabled={actionLoading} className="w-full h-14 bg-blue-600 text-white rounded-xl font-black uppercase text-xs" onClick={handleSendOptical}>Complete & Send</Button>
           </div>
+
         </DialogContent>
+
       </Dialog>
+      {/* 3. HISTORY DIALOG (Move it here, all by itself) */}
+<Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+  <DialogContent className="sm:max-w-[1000px] w-[95vw] p-0 border-none rounded-[2rem] overflow-hidden shadow-2xl bg-white">
+    <DialogHeader className="sr-only"> 
+      <DialogTitle>Patient History</DialogTitle>
+    </DialogHeader>
+
+    {/* FIXED HEIGHT WRAPPER FOR SCROLLING */}
+    <div className="h-[90vh] flex flex-col">
+      <HistorySheet 
+        patientId={selectedPatientId} 
+        patientName={selectedPatientName} 
+      />
+    </div>
+  </DialogContent>
+</Dialog>
     </div>
   );
 }
