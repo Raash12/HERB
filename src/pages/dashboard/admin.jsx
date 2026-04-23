@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, addDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword, signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 
@@ -8,9 +8,8 @@ import { useNavigate } from "react-router-dom";
 import Medical from "../doctor/Medical"; 
 import MedicalReport from "../../report/medicalReport";
 import OpticalReport from "../../report/opticalReport";
-
-// Halkan ayaan ku saxay Path-ka sxb
 import AdminPatients from "../reception/AdminPatients"; 
+import SecuritySettings from "../../security/SecuritySettings"; // <--- HALKAN KA WAC
 
 // UI COMPONENTS
 import {
@@ -25,8 +24,8 @@ import { Badge } from "@/components/ui/badge";
 
 // ICONS
 import {
-  Users, Loader2, X, Search, ChevronLeft, ChevronRight,
-  LayoutDashboard, Sun, Moon, Lock, LogOut, Building2, Activity, Trash2, Edit3, KeyRound, FileText, Eye, UserRoundSearch
+  Users, X, Search, ChevronLeft, ChevronRight,
+  LayoutDashboard, Sun, Moon, Lock, LogOut, Building2, Activity, Trash2, Edit3, FileText, Eye, UserRoundSearch
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -46,7 +45,6 @@ export default function AdminDashboard() {
   // Forms
   const [bForm, setBForm] = useState({ name: "", location: "", phone: "" });
   const [uForm, setUForm] = useState({ fullName: "", email: "", password: "", role: "doctor", branch: "", active: true });
-  const [passForm, setPassForm] = useState({ current: "", new: "", repeat: "" });
 
   const [editBranchId, setEditBranchId] = useState(null);
   const [editUserId, setEditUserId] = useState(null);
@@ -88,19 +86,6 @@ export default function AdminDashboard() {
   };
 
   // --- ACTIONS ---
-  const handleUpdatePassword = async () => {
-    if (passForm.new !== passForm.repeat) return alert("Passwords do not match!");
-    try {
-      setLoading(true);
-      const user = auth.currentUser;
-      const credential = EmailAuthProvider.credential(user.email, passForm.current);
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, passForm.new);
-      alert("Password updated successfully!");
-      setPassForm({ current: "", new: "", repeat: "" });
-    } catch (err) { alert(err.message); } finally { setLoading(false); }
-  };
-
   const handleAddBranch = async () => {
     if (!bForm.name || !bForm.location) return alert("Fadlan buuxi!");
     try {
@@ -130,7 +115,6 @@ export default function AdminDashboard() {
     try { await deleteDoc(doc(db, coll, id)); fetchData(); } catch (err) { alert(err.message); }
   };
 
-  // --- FILTER & PAGINATION ---
   const filteredData = () => {
     const term = searchTerm.toLowerCase();
     if (activeView === "branches") return branches.filter(b => b.name?.toLowerCase().includes(term));
@@ -156,7 +140,6 @@ export default function AdminDashboard() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             
-            {/* PATIENTS SIDEBAR LINK */}
             <SidebarMenuItem>
               <SidebarMenuButton isActive={activeView === "patients"} onClick={() => setActiveView("patients")}>
                 <UserRoundSearch size={18} className="text-blue-600" /> <span className="font-bold text-xs uppercase tracking-wider">Patients Registry</span>
@@ -214,7 +197,6 @@ export default function AdminDashboard() {
       <main className="flex-1 bg-slate-50/40 dark:bg-[#020817] min-h-screen p-8">
         <div className="max-w-7xl mx-auto">
 
-          {/* DASHBOARD OVERVIEW */}
           {activeView === "dashboard" && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in">
               <Card className="p-8 rounded-[1.5rem] bg-white dark:bg-slate-900 border-none shadow-sm">
@@ -240,13 +222,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Halkan ayaan ku daray Component-gii AdminPatients */}
           {activeView === "patients" && <AdminPatients />}
-
-          {/* MEDICAL STOCK VIEW */}
           {activeView === "medical" && <Medical />}
 
-          {/* BRANCHES & USERS TABLES */}
           {(activeView === "branches" || activeView === "users") && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex justify-between items-center">
@@ -320,23 +298,10 @@ export default function AdminDashboard() {
 
           {activeView === "medical_report" && <MedicalReport />}
           {activeView === "optical_report" && <OpticalReport />}
+
+          {/* --- SECURITY VIEW --- */}
           {activeView === "security" && (
-             <div className="max-w-md mx-auto space-y-6 animate-in slide-in-from-bottom-4 mt-10">
-                <div className="text-center">
-                  <div className="bg-blue-100 dark:bg-blue-900/20 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                    <KeyRound className="text-blue-600" size={32} />
-                  </div>
-                  <h2 className="text-2xl font-black uppercase tracking-tighter">Security</h2>
-                </div>
-                <Card className="p-8 rounded-[2.5rem] border-none shadow-sm bg-white dark:bg-slate-900 space-y-4">
-                    <Input type="password" placeholder="Current Password" value={passForm.current} onChange={e => setPassForm({ ...passForm, current: e.target.value })} className="h-12 rounded-xl" />
-                    <Input type="password" placeholder="New Password" value={passForm.new} onChange={e => setPassForm({ ...passForm, new: e.target.value })} className="h-12 rounded-xl" />
-                    <Input type="password" placeholder="Repeat Password" value={passForm.repeat} onChange={e => setPassForm({ ...passForm, repeat: e.target.value })} className="h-12 rounded-xl" />
-                    <Button onClick={handleUpdatePassword} disabled={loading} className="w-full bg-blue-600 h-12 rounded-xl font-bold uppercase tracking-widest">
-                      {loading ? "Updating..." : "Update Password"}
-                    </Button>
-                </Card>
-             </div>
+             <SecuritySettings onSuccess={() => setActiveView("dashboard")} />
           )}
         </div>
       </main>

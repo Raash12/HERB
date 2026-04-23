@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebase"; 
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 // Icons
 import { 
   LayoutDashboard, Calendar, LogOut, Moon, Sun, Stethoscope,
-  Users, CheckCircle2, Clock, TrendingUp, Loader2, Activity, Lock, KeyRound,
-  FileText, Pill 
+  Users, CheckCircle2, Clock, TrendingUp, Loader2, Activity, Lock, 
+  FileText
 } from "lucide-react";
 
 // Components
@@ -17,6 +17,8 @@ import MedicalPrescription from "../doctor/MedicalPrescription";
 import OpticalPrescriptionPage from "../doctor/OpticalPrescriptionPage";
 import DoctorPrescriptionView from "../doctor/DoctorPrescriptionView";
 
+import SecuritySettings from "../../security/SecuritySettings";
+
 // UI Components
 import { 
   SidebarProvider, Sidebar, SidebarContent, SidebarMenu, 
@@ -24,22 +26,16 @@ import {
 } from "@/components/ui/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedPatientId, setSelectedPatientId] = useState(null); 
   const [darkMode, setDarkMode] = useState(false);
-  const [loading, setLoading] = useState(false);
   
   const [stats, setStats] = useState({
     total: 0, completed: 0, pending: 0, loading: true
   });
-
-  // Security State
-  const [passwords, setPasswords] = useState({ current: "", new: "", repeat: "" });
 
   // Navigation Handlers
   const openMedical = (id) => { setSelectedPatientId(id); setActiveView("medical"); };
@@ -84,33 +80,13 @@ export default function DoctorDashboard() {
     navigate("/");
   };
 
-  const handleUpdatePassword = async () => {
-    const { current, new: newPass, repeat } = passwords;
-    if (!current || !newPass || !repeat) return alert("Fadlan buuxi meelaha banaan!");
-    if (newPass !== repeat) return alert("Password-ka cusub iyo ku celisku ma is laha!");
-    
-    try {
-      setLoading(true);
-      const user = auth.currentUser;
-      const credential = EmailAuthProvider.credential(user.email, current);
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, newPass);
-      alert("Password-ka si guul leh ayaa loo beddelay!");
-      setPasswords({ current: "", new: "", repeat: "" });
-      setActiveView("dashboard");
-    } catch (err) { 
-      alert("Cillad: " + err.message); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
-
   const successRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarContent>
+          {/* Logo Section */}
           <div className="flex items-center gap-3 px-4 mb-8 mt-6">
             <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
               <Stethoscope size={22} className="text-white" />
@@ -143,13 +119,7 @@ export default function DoctorDashboard() {
             </SidebarMenuItem>
               
             <SidebarMenuItem>
-              <SidebarMenuButton 
-                isActive={activeView === "prescriptions"} 
-                onClick={() => {
-                  setActiveView("prescriptions");
-                  setSelectedPatientId(null);
-                }}
-              >
+              <SidebarMenuButton isActive={activeView === "prescriptions"} onClick={() => { setActiveView("prescriptions"); setSelectedPatientId(null); }}>
                 <FileText size={20} />
                 <span className="font-bold uppercase text-[11px] tracking-wider">Prescriptions</span>
               </SidebarMenuButton>
@@ -218,59 +188,9 @@ export default function DoctorDashboard() {
           </div>
         )}
 
+        {/* --- SECURITY VIEW --- */}
         {activeView === "security" && (
-          <div className="max-w-md mx-auto space-y-6 animate-in slide-in-from-bottom-4 mt-10">
-            <div className="text-center">
-              <div className="bg-blue-100 dark:bg-blue-900/20 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <KeyRound className="text-blue-600" size={32} />
-              </div>
-              <h2 className="text-2xl font-black uppercase tracking-tighter">Security Settings</h2>
-              <p className="text-slate-400 text-sm uppercase font-bold text-[10px] tracking-widest">Update your credentials</p>
-            </div>
-
-            <Card className="p-8 rounded-[2.5rem] border-none shadow-xl bg-white dark:bg-slate-900 space-y-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase ml-1 text-slate-400">Current Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" 
-                  value={passwords.current} 
-                  onChange={(e) => setPasswords({...passwords, current: e.target.value})} 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase ml-1 text-slate-400">New Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" 
-                  value={passwords.new} 
-                  onChange={(e) => setPasswords({...passwords, new: e.target.value})} 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase ml-1 text-slate-400">Repeat New Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="h-12 rounded-xl dark:bg-slate-800 dark:border-none" 
-                  value={passwords.repeat} 
-                  onChange={(e) => setPasswords({...passwords, repeat: e.target.value})} 
-                />
-              </div>
-
-              <Button 
-                onClick={handleUpdatePassword} 
-                disabled={loading} 
-                className="w-full bg-blue-600 h-12 rounded-xl font-bold uppercase tracking-widest mt-4 shadow-lg shadow-blue-200 dark:shadow-none"
-              >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : "Update Password"}
-              </Button>
-            </Card>
-          </div>
+           <SecuritySettings onSuccess={() => setActiveView("dashboard")} />
         )}
 
         {activeView === "appointments" && (
