@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { auth, db } from "../../firebase"; 
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-// Add FileText here
+
+// Icons
 import { 
   LayoutDashboard, Calendar, LogOut, Moon, Sun, Stethoscope,
   Users, CheckCircle2, Clock, TrendingUp, Loader2, Activity, Lock, KeyRound,
@@ -13,7 +14,7 @@ import {
 // Components
 import DoctorAppointments from "../doctor/DoctorAppointments"; 
 import MedicalPrescription from "../doctor/MedicalPrescription"; 
-import PrescriptionPage from "../doctor/PrescriptionPage"; 
+import OpticalPrescriptionPage from "../doctor/OpticalPrescriptionPage";
 import DoctorPrescriptionView from "../doctor/DoctorPrescriptionView";
 
 // UI Components
@@ -25,8 +26,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
@@ -67,6 +66,7 @@ export default function DoctorDashboard() {
         loading: false
       });
     }, (error) => {
+      console.error("Firestore error:", error);
       setStats(prev => ({ ...prev, loading: false }));
     });
     return () => unsubscribe();
@@ -84,7 +84,6 @@ export default function DoctorDashboard() {
     navigate("/");
   };
 
-  // Password Update Logic
   const handleUpdatePassword = async () => {
     const { current, new: newPass, repeat } = passwords;
     if (!current || !newPass || !repeat) return alert("Fadlan buuxi meelaha banaan!");
@@ -143,21 +142,18 @@ export default function DoctorDashboard() {
               </SidebarMenuButton>
             </SidebarMenuItem>
               
-
             <SidebarMenuItem>
-  <SidebarMenuButton 
-    isActive={activeView === "prescriptions"} 
-    onClick={() => {
-      setActiveView("prescriptions");
-      setSelectedPatientId(null); // Clear patient selection when moving to general view
-    }}
-  >
-    <FileText size={20} />
-    <span className="font-bold uppercase text-[11px] tracking-wider">Prescriptions</span>
-  </SidebarMenuButton>
-</SidebarMenuItem>
-
-
+              <SidebarMenuButton 
+                isActive={activeView === "prescriptions"} 
+                onClick={() => {
+                  setActiveView("prescriptions");
+                  setSelectedPatientId(null);
+                }}
+              >
+                <FileText size={20} />
+                <span className="font-bold uppercase text-[11px] tracking-wider">Prescriptions</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
 
@@ -222,7 +218,6 @@ export default function DoctorDashboard() {
           </div>
         )}
 
-        {/* SECURITY VIEW */}
         {activeView === "security" && (
           <div className="max-w-md mx-auto space-y-6 animate-in slide-in-from-bottom-4 mt-10">
             <div className="text-center">
@@ -278,7 +273,6 @@ export default function DoctorDashboard() {
           </div>
         )}
 
-        {/* APPOINTMENTS & PRESCRIPTIONS VIEWS */}
         {activeView === "appointments" && (
           <div className="animate-in slide-in-from-right-4 duration-500">
             <DoctorAppointments onOpenMedical={openMedical} onOpenEye={openEye} />
@@ -293,9 +287,10 @@ export default function DoctorDashboard() {
 
         {activeView === "eye" && selectedPatientId && (
           <div className="animate-in zoom-in-95 duration-500">
-            <PrescriptionPage patientId={selectedPatientId} onBack={backToAppointments} />
+            <OpticalPrescriptionPage patientId={selectedPatientId} onBack={backToAppointments} />
           </div>
         )}
+        
         {activeView === "prescriptions" && (
           <div className="animate-in zoom-in-95 duration-500">
             <DoctorPrescriptionView />
