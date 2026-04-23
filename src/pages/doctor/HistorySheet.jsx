@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Pill, Glasses, User, Activity } from "lucide-react";
@@ -9,14 +9,24 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 export default function HistorySheet({ patientId, patientName }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [patientData, setPatientData] = useState(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
       if (!patientId) return;
       setLoading(true);
       try {
+        // 1. Fetch Patient Details for Dynamic Branch
+        const patientRef = doc(db, "patients", patientId);
+        const patientSnap = await getDoc(patientRef);
+        if (patientSnap.exists()) {
+          setPatientData(patientSnap.data());
+        }
+
+        // 2. Fetch Prescriptions
         const medQ = query(collection(db, "medical_prescriptions"), where("patientId", "==", patientId));
         const optQ = query(collection(db, "prescriptions"), where("patientId", "==", patientId));
+        
         const [medSnap, optSnap] = await Promise.all([getDocs(medQ), getDocs(optQ)]);
         
         const combined = [
@@ -25,7 +35,9 @@ export default function HistorySheet({ patientId, patientName }) {
         ].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         
         setHistory(combined);
-      } catch (err) { console.error("Error fetching history:", err); }
+      } catch (err) { 
+        console.error("Error fetching history:", err); 
+      }
       setLoading(false);
     };
     fetchHistory();
@@ -38,6 +50,10 @@ export default function HistorySheet({ patientId, patientName }) {
       .map(([key]) => key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim());
   };
 
+  // Logic for detailed count
+  const medCount = history.filter(item => item.type === 'MEDICAL').length;
+  const optCount = history.filter(item => item.type === 'OPTICAL').length;
+
   if (loading) return (
     <div className="flex-1 flex flex-col items-center justify-center bg-white h-full">
       <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
@@ -48,6 +64,7 @@ export default function HistorySheet({ patientId, patientName }) {
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
       
+      {/* HEADER SECTION */}
       <div className="p-8 bg-slate-900 shrink-0 relative">
         <div className="flex justify-between items-center relative z-10">
           <div className="flex items-center gap-4">
@@ -56,10 +73,15 @@ export default function HistorySheet({ patientId, patientName }) {
             </div>
             <div>
               <h3 className="text-white font-black text-2xl uppercase tracking-tighter">{patientName || "Patient"}</h3>
-              <p className="text-blue-400 text-[10px] font-bold uppercase tracking-widest">ID: {patientId} • {history.length} Visits</p>
+              <p className="text-blue-400 text-[10px] font-bold uppercase tracking-widest">
+                ID: {patientId} • {medCount} Medical • {optCount} Optical
+              </p>
             </div>
           </div>
-          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 font-black tracking-tighter">HORSEED BANAADIR</Badge>
+          {/* Dynamic Branch Badge */}
+          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 font-black tracking-tighter uppercase">
+            {patientData?.branch || "HORSEED CLINIC"}
+          </Badge>
         </div>
       </div>
 
@@ -80,7 +102,9 @@ export default function HistorySheet({ patientId, patientName }) {
                           {item.type === 'MEDICAL' ? <Activity size={20} /> : <Glasses size={20} />}
                         </div>
                         <div className="flex-1">
-                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">{item.type} • {item.createdAt?.toDate().toLocaleDateString('en-GB')}</p>
+                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">
+                            {item.type} • {item.createdAt?.toDate().toLocaleDateString('en-GB')}
+                          </p>
                           <h4 className="font-black text-slate-800 uppercase text-lg leading-none">
                             {item.type === 'MEDICAL' ? (item.diagnosis || "Medical Case") : (item.category || "Optical Rx")}
                           </h4>
@@ -125,8 +149,6 @@ export default function HistorySheet({ patientId, patientName }) {
                                          <span className="w-8 text-center">VA</span>
                                        </div>
                                      </div>
-                                     
-                                     {/* Distance Row */}
                                      <div className="flex justify-between items-center">
                                        <span className="text-[8px] font-black text-white/30 uppercase">Dist</span>
                                        <div className="flex gap-4">
@@ -135,8 +157,6 @@ export default function HistorySheet({ patientId, patientName }) {
                                          <span className="w-8 text-center text-[11px] font-black text-blue-400">{item.values?.[eye]?.distance?.va || '—'}</span>
                                        </div>
                                      </div>
-
-                                     {/* Near Row */}
                                      <div className="flex justify-between items-center">
                                        <span className="text-[8px] font-black text-white/30 uppercase">Near</span>
                                        <div className="flex gap-4">
