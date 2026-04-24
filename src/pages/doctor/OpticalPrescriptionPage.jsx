@@ -6,38 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Glasses } from "lucide-react";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
+export default function OpticalPrescriptionPage({ activeVisit, onClose, existingPrescription = null }) {
   const [receptions, setReceptions] = useState([]);
-  const [selectedReception, setSelectedReception] = useState("");
+  const [selectedReception, setSelectedReception] = useState(existingPrescription?.sendTo || "");
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
-  const [ipd, setIpd] = useState("");
-  const [values, setValues] = useState({
+  const [ipd, setIpd] = useState(existingPrescription?.ipd || "");
+  const [values, setValues] = useState(existingPrescription?.values || {
     RE: { distance: { sph: "", cyl: "", axis: "", va: "" }, near: { sph: "", cyl: "", axis: "", va: "" } },
     LE: { distance: { sph: "", cyl: "", axis: "", va: "" }, near: { sph: "", cyl: "", axis: "", va: "" } },
   });
 
-  const [options, setOptions] = useState({
+  const [options, setOptions] = useState(existingPrescription?.options || {
     distance: false, near: false, bifocal: false, progressive: false, 
     singleVision: false, photoBrown: false, photoGrey: false, white: false,
     sunglasses: false, blueCut: false, highIndex: false, plasticCr39: false,
   });
 
+  const isEdit = !!existingPrescription;
+
   useEffect(() => {
     const fetchReceptions = async () => {
       if (!activeVisit) return;
       try {
-        const q = query(
-          collection(db, "users"), 
-          where("role", "==", "reception"), 
-          where("branch", "==", activeVisit.branch)
-        );
+        const q = query(collection(db, "users"), where("role", "==", "reception"), where("branch", "==", activeVisit.branch));
         const res = await getDocs(q);
         setReceptions(res.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) { 
-        console.error("Error:", err); 
-      }
+      } catch (err) { console.error("Error:", err); }
       setFetching(false);
     };
     fetchReceptions();
@@ -47,7 +43,7 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
     if (!selectedReception) return alert("Fadlan dooro Reception-ka!");
     setLoading(true);
     try {
-      await addDoc(collection(db, "prescriptions"), {
+      const payload = {
         patientId: activeVisit.patientId,
         visitId: activeVisit.id,
         patientName: activeVisit.patientName,
@@ -60,17 +56,20 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
         ipd,
         status: "pending",
         category: "optical",
-        createdAt: serverTimestamp(),
-      });
+        updatedAt: serverTimestamp(),
+      };
 
-      await updateDoc(doc(db, "visits", activeVisit.id), { 
-        opticalSent: true, 
-        status: "processing" 
-      });
+      if (isEdit) {
+        await updateDoc(doc(db, "prescriptions", existingPrescription.id), payload);
+      } else {
+        payload.createdAt = serverTimestamp();
+        await addDoc(collection(db, "prescriptions"), payload);
+        await updateDoc(doc(db, "visits", activeVisit.id), { opticalSent: true, status: "processing" });
+      }
 
-      onClose(); // Xidh modal-ka marka la dhammaystiro
+      onClose();
     } catch (err) { 
-      alert("Cillad ayaa dhacday markii la kaydinayay!"); 
+      alert("Cillad ayaa dhacday!"); 
     }
     setLoading(false);
   };
@@ -79,19 +78,19 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
 
   return (
     <div className="flex flex-col bg-white overflow-hidden rounded-[2rem]">
-      {/* Header kooban oo la mid ah kii Medical-ka */}
       <DialogHeader className="bg-blue-600 p-4 text-white">
         <div className="flex items-center gap-3 px-2">
           <div className="bg-white/20 p-2 rounded-xl"><Glasses size={20} /></div>
           <div>
-            <DialogTitle className="text-sm font-black uppercase tracking-tight">Optical Portal</DialogTitle>
+            <DialogTitle className="text-sm font-black uppercase tracking-tight">
+                {isEdit ? "Update Optical Prescription" : "Optical Portal"}
+            </DialogTitle>
             <p className="text-[9px] text-blue-100 font-bold uppercase">{activeVisit?.patientName}</p>
           </div>
         </div>
       </DialogHeader>
 
       <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-        {/* Reception iyo IPD Selection */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
             <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Reception</label>
@@ -115,7 +114,6 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
           </div>
         </div>
 
-        {/* Eyes Section (RE & LE) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {['RE', 'LE'].map((eye) => (
             <div key={eye} className="p-3 bg-blue-50/30 rounded-xl border border-blue-100">
@@ -147,7 +145,6 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
           ))}
         </div>
 
-        {/* Glass Options (Buttons) */}
         <div className="grid grid-cols-3 gap-1.5">
           {Object.keys(options).map((opt) => (
             <button 
@@ -164,13 +161,12 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose }) {
           ))}
         </div>
 
-        {/* Authorize Button */}
         <Button 
           onClick={handleSave} 
           disabled={loading} 
           className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[11px] rounded-xl shadow-lg transition-all mt-2"
         >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : "Authorize & Send"}
+          {loading ? <Loader2 className="animate-spin" size={18} /> : (isEdit ? "Update & Send" : "Authorize & Send")}
         </Button>
       </div>
     </div>
