@@ -77,12 +77,12 @@ export const handlePrintPrescription = async (order) => {
           body { 
             width: 148mm; 
             height: 210mm; 
-            padding: 10mm; /* Wax yar ayaa laga dhimay padding-ka si boos loo helo */
+            padding: 10mm; 
             background: #fff; 
             display: flex; 
             flex-direction: column;
             overflow: hidden;
-            color: #1e3a8a; /* Midabka guud waa Blue */
+            color: #1e3a8a;
           }
 
           .header { 
@@ -111,10 +111,10 @@ export const handlePrintPrescription = async (order) => {
 
           .patient-card {
             border: 3px solid #1e3a8a; border-radius: 10px; padding: 12px;
-            display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;
+            display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 10px;
             background: #f0f4f8; margin-bottom: 15px;
           }
-          .p-label { font-size: 10px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; opacity: 0.8; }
+          .p-label { font-size: 10px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; opacity: 0.7; }
           .p-info { font-size: 16px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
 
           .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
@@ -125,11 +125,11 @@ export const handlePrintPrescription = async (order) => {
           }
           .rx-table td { 
             border: 3px solid #1e3a8a; 
-            height: 55px; /* Aad ayaa loo weyneeyay */
+            height: 55px; 
             text-align: center; 
-            font-size: 26px; /* Nambarada Rx waa la weyneeyay */
+            font-size: 26px; 
             font-weight: 900; 
-            color: #1e3a8a !important; /* Blue cad ah */
+            color: #1e3a8a !important;
             -webkit-print-color-adjust: exact;
           }
           .row-title { 
@@ -184,13 +184,17 @@ export const handlePrintPrescription = async (order) => {
         </div>
 
         <div class="patient-card">
-          <div style="grid-column: span 2;">
+          <div style="grid-column: span 1;">
             <div class="p-label">Patient Name</div>
             <div class="p-info">${patientName}</div>
           </div>
           <div style="text-align: right;">
             <div class="p-label">Date</div>
             <div class="p-info">${dateStr}</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="p-label">Rx ID</div>
+            <div class="p-info">#${order.visitId?.slice(-5).toUpperCase() || '---'}</div>
           </div>
           <div>
             <div class="p-label">Age</div>
@@ -199,10 +203,6 @@ export const handlePrintPrescription = async (order) => {
           <div>
             <div class="p-label">Gender</div>
             <div class="p-info">${patientExtraInfo.gender}</div>
-          </div>
-          <div style="text-align: right;">
-            <div class="p-label">Rx ID</div>
-            <div class="p-info">#${order.visitId?.slice(-5).toUpperCase() || '---'}</div>
           </div>
         </div>
 
@@ -221,25 +221,25 @@ export const handlePrintPrescription = async (order) => {
           <tbody>
             <tr>
               <td class="row-title">DISTANCE</td>
-              <td>${(order.values?.RE?.distance?.sph || '').toUpperCase()}</td>
-              <td>${(order.values?.RE?.distance?.cyl || '').toUpperCase()}</td>
-              <td>${(order.values?.RE?.distance?.axis || '').toUpperCase()}</td>
-              <td>${(order.values?.RE?.distance?.va || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.distance?.sph || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.distance?.cyl || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.distance?.axis || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.distance?.va || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.distance?.sph || '')}</td>
+              <td>${(order.values?.RE?.distance?.cyl || '')}</td>
+              <td>${(order.values?.RE?.distance?.axis || '')}</td>
+              <td>${(order.values?.RE?.distance?.va || '')}</td>
+              <td>${(order.values?.LE?.distance?.sph || '')}</td>
+              <td>${(order.values?.LE?.distance?.cyl || '')}</td>
+              <td>${(order.values?.LE?.distance?.axis || '')}</td>
+              <td>${(order.values?.LE?.distance?.va || '')}</td>
             </tr>
             <tr>
               <td class="row-title">NEAR / ADD</td>
-              <td>${(order.values?.RE?.near?.sph || '').toUpperCase()}</td>
-              <td>${(order.values?.RE?.near?.cyl || '').toUpperCase()}</td>
-              <td>${(order.values?.RE?.near?.axis || '').toUpperCase()}</td>
-              <td>${(order.values?.RE?.near?.va || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.near?.sph || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.near?.cyl || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.near?.axis || '').toUpperCase()}</td>
-              <td>${(order.values?.LE?.near?.va || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.near?.sph || '')}</td>
+              <td>${(order.values?.RE?.near?.cyl || '')}</td>
+              <td>${(order.values?.RE?.near?.axis || '')}</td>
+              <td>${(order.values?.RE?.near?.va || '')}</td>
+              <td>${(order.values?.LE?.near?.sph || '')}</td>
+              <td>${(order.values?.LE?.near?.cyl || '')}</td>
+              <td>${(order.values?.LE?.near?.axis || '')}</td>
+              <td>${(order.values?.LE?.near?.va || '')}</td>
             </tr>
           </tbody>
         </table>
