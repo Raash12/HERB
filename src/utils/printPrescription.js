@@ -68,7 +68,6 @@ export const handlePrintPrescription = async (order) => {
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&display=swap');
           
-          /* --- A5 PAGE SETUP --- */
           @page { 
             size: A5 portrait; 
             margin: 0; 
@@ -123,7 +122,16 @@ export const handlePrintPrescription = async (order) => {
             border: 1px solid #1e3a8a; padding: 8px; font-size: 11px; font-weight: 900;
             -webkit-print-color-adjust: exact;
           }
-          .rx-table td { border: 2px solid #1e3a8a; height: 38px; text-align: center; font-size: 22px; font-weight: 900; color: #000; }
+          /* HALKAN AYAA WAX LAGA BEDELAY SI COLOR-KU UUSAN U LUMIN */
+          .rx-table td { 
+            border: 2px solid #1e3a8a; 
+            height: 38px; 
+            text-align: center; 
+            font-size: 22px; 
+            font-weight: 900; 
+            color: #000000 !important; /* Madow saafi ah */
+            -webkit-print-color-adjust: exact;
+          }
           .row-title { background: #f1f5f9 !important; font-size: 10px !important; color: #1e3a8a !important; width: 80px; -webkit-print-color-adjust: exact; }
 
           .bottom-container { display: flex; gap: 10px; }
@@ -139,7 +147,7 @@ export const handlePrintPrescription = async (order) => {
             border-radius: 8px; text-align: center; padding: 10px;
             -webkit-print-color-adjust: exact;
           }
-          .ipd-number { font-size: 34px; font-weight: 900; line-height: 1; }
+          .ipd-number { font-size: 34px; font-weight: 900; line-height: 1; color: white !important; }
 
           .footer { margin-top: auto; padding-top: 10px; border-top: 3px solid #1e3a8a; display: flex; justify-content: space-between; align-items: flex-end; }
           .contact-footer { font-size: 10px; font-weight: 800; color: #1e3a8a; line-height: 1.4; }
@@ -194,25 +202,25 @@ export const handlePrintPrescription = async (order) => {
           <tbody>
             <tr>
               <td class="row-title">DISTANCE</td>
-              <td>${order.values?.RE?.distance?.sph || ''}</td>
-              <td>${order.values?.RE?.distance?.cyl || ''}</td>
-              <td>${order.values?.RE?.distance?.axis || ''}</td>
-              <td>${order.values?.RE?.distance?.va || ''}</td>
-              <td>${order.values?.LE?.distance?.sph || ''}</td>
-              <td>${order.values?.LE?.distance?.cyl || ''}</td>
-              <td>${order.values?.LE?.distance?.axis || ''}</td>
-              <td>${order.values?.LE?.distance?.va || ''}</td>
+              <td>${(order.values?.RE?.distance?.sph || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.distance?.cyl || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.distance?.axis || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.distance?.va || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.distance?.sph || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.distance?.cyl || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.distance?.axis || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.distance?.va || '').toUpperCase()}</td>
             </tr>
             <tr>
               <td class="row-title">NEAR / ADD</td>
-              <td>${order.values?.RE?.near?.sph || ''}</td>
-              <td>${order.values?.RE?.near?.cyl || ''}</td>
-              <td>${order.values?.RE?.near?.axis || ''}</td>
-              <td>${order.values?.RE?.near?.va || ''}</td>
-              <td>${order.values?.LE?.near?.sph || ''}</td>
-              <td>${order.values?.LE?.near?.cyl || ''}</td>
-              <td>${order.values?.LE?.near?.axis || ''}</td>
-              <td>${order.values?.LE?.near?.va || ''}</td>
+              <td>${(order.values?.RE?.near?.sph || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.near?.cyl || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.near?.axis || '').toUpperCase()}</td>
+              <td>${(order.values?.RE?.near?.va || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.near?.sph || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.near?.cyl || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.near?.axis || '').toUpperCase()}</td>
+              <td>${(order.values?.LE?.near?.va || '').toUpperCase()}</td>
             </tr>
           </tbody>
         </table>
