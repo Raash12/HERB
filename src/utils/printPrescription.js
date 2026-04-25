@@ -72,99 +72,105 @@ export const handlePrintPrescription = async (order) => {
             size: A5 portrait; 
             margin: 0; 
           }
-          * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif, Arial; }
+          * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
           
           body { 
             width: 148mm; 
             height: 210mm; 
-            padding: 8mm; 
+            padding: 10mm; /* Wax yar ayaa laga dhimay padding-ka si boos loo helo */
             background: #fff; 
             display: flex; 
             flex-direction: column;
             overflow: hidden;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            color: #1e3a8a; /* Midabka guud waa Blue */
           }
 
           .header { 
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 6px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 12px;
+            border-bottom: 8px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 15px;
           }
-          .logo-img { height: 65px; width: auto; object-fit: contain; }
+          .logo-img { height: 75px; width: auto; object-fit: contain; }
           
           .brand-container { text-align: right; flex: 1; }
           .brand-name { 
-            font-size: 28px; 
+            font-size: 32px; 
             font-weight: 900; 
             color: #1e3a8a; 
             text-transform: uppercase; 
-            line-height: 0.9; 
+            line-height: 0.8; 
             letter-spacing: -1px;
           }
           .brand-sub { 
-            font-size: 10px; 
+            font-size: 12px; 
             font-weight: 800; 
             color: #1e3a8a; 
-            letter-spacing: 3px; 
-            margin-top: 4px;
+            letter-spacing: 4px; 
+            margin-top: 6px;
             text-transform: uppercase;
           }
 
           .patient-card {
-            border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px;
-            display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px;
-            background: #f8fafc !important; margin-bottom: 12px;
-            -webkit-print-color-adjust: exact;
+            border: 3px solid #1e3a8a; border-radius: 10px; padding: 12px;
+            display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;
+            background: #f0f4f8; margin-bottom: 15px;
           }
-          .p-label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; }
-          .p-info { font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .p-label { font-size: 10px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; opacity: 0.8; }
+          .p-info { font-size: 16px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
 
-          .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+          .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
           .rx-table th { 
             background: #1e3a8a !important; color: white !important; 
-            border: 1px solid #1e3a8a; padding: 8px; font-size: 11px; font-weight: 900;
+            border: 2px solid #1e3a8a; padding: 10px; font-size: 12px; font-weight: 900;
             -webkit-print-color-adjust: exact;
           }
-          
           .rx-table td { 
-            border: 2px solid #1e3a8a; 
-            height: 45px; 
+            border: 3px solid #1e3a8a; 
+            height: 55px; /* Aad ayaa loo weyneeyay */
             text-align: center; 
-            font-size: 24px; 
+            font-size: 26px; /* Nambarada Rx waa la weyneeyay */
             font-weight: 900; 
-            color: #1e3a8a !important; /* Blue-gii ayaa lagu soo celiyay */
-            opacity: 1 !important;
-            visibility: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            color: #1e3a8a !important; /* Blue cad ah */
+            -webkit-print-color-adjust: exact;
           }
-          
           .row-title { 
-            background: #f1f5f9 !important; 
-            font-size: 10px !important; 
+            background: #e2e8f0 !important; 
+            font-size: 12px !important; 
             color: #1e3a8a !important; 
-            width: 80px; 
+            width: 90px; 
             -webkit-print-color-adjust: exact;
           }
 
-          .bottom-container { display: flex; gap: 10px; }
-          .options-card { flex: 1; border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px; }
-          .section-head { font-size: 11px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; border-bottom: 2px solid #1e3a8a; margin-bottom: 6px; }
+          .bottom-container { display: flex; gap: 12px; align-items: stretch; }
+          .options-card { flex: 1; border: 3px solid #1e3a8a; border-radius: 10px; padding: 12px; }
+          .section-head { 
+            font-size: 13px; font-weight: 900; color: #1e3a8a; 
+            text-transform: uppercase; border-bottom: 3px solid #1e3a8a; margin-bottom: 10px; padding-bottom: 4px;
+          }
           
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-          .item { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; color: #1e3a8a; }
-          .check-box { width: 14px; height: 14px; border: 1.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .item { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; color: #1e3a8a; }
+          .check-box { 
+            width: 18px; height: 18px; border: 2px solid #1e3a8a; 
+            display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900;
+          }
 
           .ipd-card { 
-            width: 120px; background: #1e3a8a !important; color: white !important; 
-            border-radius: 8px; text-align: center; padding: 10px;
+            width: 140px; background: #1e3a8a !important; color: white !important; 
+            border-radius: 10px; text-align: center; padding: 15px;
+            display: flex; flex-direction: column; justify-content: center;
             -webkit-print-color-adjust: exact;
           }
-          .ipd-number { font-size: 34px; font-weight: 900; line-height: 1; color: white !important; }
+          .ipd-number { font-size: 45px; font-weight: 900; line-height: 1; color: white !important; }
 
-          .footer { margin-top: auto; padding-top: 10px; border-top: 3px solid #1e3a8a; display: flex; justify-content: space-between; align-items: flex-end; }
-          .contact-footer { font-size: 10px; font-weight: 800; color: #1e3a8a; line-height: 1.4; }
-          .sig-line { border-top: 2px solid #1e3a8a; width: 150px; text-align: center; padding-top: 5px; font-size: 9px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .footer { 
+            margin-top: auto; padding-top: 15px; border-top: 5px solid #1e3a8a; 
+            display: flex; justify-content: space-between; align-items: flex-end; 
+          }
+          .contact-footer { font-size: 11px; font-weight: 800; color: #1e3a8a; line-height: 1.5; }
+          .sig-line { 
+            border-top: 3px solid #1e3a8a; width: 180px; text-align: center; 
+            padding-top: 8px; font-size: 11px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; 
+          }
         </style>
       </head>
       <body>
@@ -252,9 +258,9 @@ export const handlePrintPrescription = async (order) => {
           </div>
 
           <div class="ipd-card">
-            <div style="font-size: 11px; font-weight: 900;">P.D / IPD</div>
+            <div style="font-size: 14px; font-weight: 900;">P.D / IPD</div>
             <div class="ipd-number">${order.ipd || '--'}</div>
-            <div style="font-size: 8px; font-weight: 800;">MM</div>
+            <div style="font-size: 10px; font-weight: 800;">MILLIMETERS</div>
           </div>
         </div>
 
@@ -271,7 +277,8 @@ export const handlePrintPrescription = async (order) => {
           window.onload = () => { 
             setTimeout(() => { 
               window.print(); 
-            }, 1000); 
+              window.close(); 
+            }, 800); 
           };
         </script>
       </body>
