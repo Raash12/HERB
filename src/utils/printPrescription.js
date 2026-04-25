@@ -72,7 +72,7 @@ export const handlePrintPrescription = async (order) => {
             size: A5 portrait; 
             margin: 0; 
           }
-          * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+          * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif, Arial; }
           
           body { 
             width: 148mm; 
@@ -82,6 +82,8 @@ export const handlePrintPrescription = async (order) => {
             display: flex; 
             flex-direction: column;
             overflow: hidden;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           .header { 
@@ -111,7 +113,8 @@ export const handlePrintPrescription = async (order) => {
           .patient-card {
             border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px;
             display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px;
-            background: #f8fafc; margin-bottom: 12px;
+            background: #f8fafc !important; margin-bottom: 12px;
+            -webkit-print-color-adjust: exact;
           }
           .p-label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; }
           .p-info { font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
@@ -122,17 +125,27 @@ export const handlePrintPrescription = async (order) => {
             border: 1px solid #1e3a8a; padding: 8px; font-size: 11px; font-weight: 900;
             -webkit-print-color-adjust: exact;
           }
-          /* HALKAN AYAA WAX LAGA BEDELAY SI COLOR-KU UUSAN U LUMIN */
+          
           .rx-table td { 
             border: 2px solid #1e3a8a; 
-            height: 38px; 
+            height: 45px; 
             text-align: center; 
-            font-size: 22px; 
+            font-size: 24px; 
             font-weight: 900; 
-            color: #000000 !important; /* Madow saafi ah */
+            color: #1e3a8a !important; /* Blue-gii ayaa lagu soo celiyay */
+            opacity: 1 !important;
+            visibility: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          .row-title { 
+            background: #f1f5f9 !important; 
+            font-size: 10px !important; 
+            color: #1e3a8a !important; 
+            width: 80px; 
             -webkit-print-color-adjust: exact;
           }
-          .row-title { background: #f1f5f9 !important; font-size: 10px !important; color: #1e3a8a !important; width: 80px; -webkit-print-color-adjust: exact; }
 
           .bottom-container { display: flex; gap: 10px; }
           .options-card { flex: 1; border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px; }
@@ -140,7 +153,7 @@ export const handlePrintPrescription = async (order) => {
           
           .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
           .item { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; color: #1e3a8a; }
-          .check-box { width: 14px; height: 14px; border: 1.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+          .check-box { width: 14px; height: 14px; border: 1.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; }
 
           .ipd-card { 
             width: 120px; background: #1e3a8a !important; color: white !important; 
@@ -255,7 +268,11 @@ export const handlePrintPrescription = async (order) => {
         </div>
 
         <script>
-          window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 800); };
+          window.onload = () => { 
+            setTimeout(() => { 
+              window.print(); 
+            }, 1000); 
+          };
         </script>
       </body>
     </html>
