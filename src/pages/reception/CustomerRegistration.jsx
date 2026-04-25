@@ -20,27 +20,27 @@ const SOMALIA_DISTRICTS = {
   ],
 
   Hirshabelle: [
-    "Jowhar","Balcad","Mahaday","Adan Yabaal","Beledweyne","Buulo Burte","Jalalaqsi","Matabaan"
+    "Jowhar","Balcad","Mahaday","Adan Yabaal","Beledweyne","Buulo Burte","Jalalaqsi","Matabaan" , "Warsheekh","Cadale" ,"Maxaas"
   ],
 
   Puntland: [
-    "Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla"
+    "Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla" , "Bandar Qaasim" ,"Caluula" , "Iskushuban" ,"Carmo" , "Galdogob" ,"Jariiban" ,"Bacadweyn"
   ],
 
   Jubaland: [
-    "Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley"
+    "Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley" ,"Garbahaarey " , "Baardheere" , "Ceelwaaq" , "Luuq" ,"Belet Xaawo" ,"Buurdhuubo" ,"Bu'aale " , "Jilib" , "Saakow" ,"Jilib"
   ],
 
   Galmudug: [
-    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale"
+    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer"
   ],
 
   "Koofur Galbeed": [
-    "Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye"
+    "Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere"
   ],
 
   Somaliland: [
-    "Hargeisa","Berbera","Burao","Borama","Erigavo","Las Anod"
+    "Hargeisa","Berbera","Burao","Borama","Erigavo"
   ],
 
   "Waqoyi Bari": [
