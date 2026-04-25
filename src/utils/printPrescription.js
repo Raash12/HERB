@@ -69,15 +69,15 @@ export const handlePrintPrescription = async (order) => {
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&display=swap');
           
           @page { 
-            size: A5 portrait; 
-            margin: 0; 
+            size: A4 portrait; 
+            margin: 15mm; 
           }
           * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
           
           body { 
-            width: 148mm; 
-            height: 210mm; 
-            padding: 10mm; 
+            width: 210mm; 
+            height: 297mm; 
+            padding: 15mm; 
             background: #fff; 
             display: flex; 
             flex-direction: column;
@@ -87,13 +87,13 @@ export const handlePrintPrescription = async (order) => {
 
           .header { 
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 8px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 15px;
+            border-bottom: 8px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 25px;
           }
-          .logo-img { height: 75px; width: auto; object-fit: contain; }
+          .logo-img { height: 90px; width: auto; object-fit: contain; }
           
           .brand-container { text-align: right; flex: 1; }
           .brand-name { 
-            font-size: 32px; 
+            font-size: 42px; 
             font-weight: 900; 
             color: #1e3a8a; 
             text-transform: uppercase; 
@@ -101,75 +101,75 @@ export const handlePrintPrescription = async (order) => {
             letter-spacing: -1px;
           }
           .brand-sub { 
-            font-size: 12px; 
+            font-size: 14px; 
             font-weight: 800; 
             color: #1e3a8a; 
-            letter-spacing: 4px; 
-            margin-top: 6px;
+            letter-spacing: 5px; 
+            margin-top: 8px;
             text-transform: uppercase;
           }
 
           .patient-card {
-            border: 3px solid #1e3a8a; border-radius: 10px; padding: 12px;
-            display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 10px;
-            background: #f0f4f8; margin-bottom: 15px;
+            border: 3px solid #1e3a8a; border-radius: 12px; padding: 20px;
+            display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 15px;
+            background: #f0f4f8; margin-bottom: 25px;
           }
-          .p-label { font-size: 10px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; opacity: 0.7; }
-          .p-info { font-size: 16px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .p-label { font-size: 12px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; opacity: 0.7; }
+          .p-info { font-size: 20px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
 
-          .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
           .rx-table th { 
             background: #1e3a8a !important; color: white !important; 
-            border: 2px solid #1e3a8a; padding: 10px; font-size: 12px; font-weight: 900;
+            border: 2px solid #1e3a8a; padding: 15px; font-size: 14px; font-weight: 900;
             -webkit-print-color-adjust: exact;
           }
           .rx-table td { 
             border: 3px solid #1e3a8a; 
-            height: 55px; 
+            height: 70px; 
             text-align: center; 
-            font-size: 26px; 
+            font-size: 32px; 
             font-weight: 900; 
             color: #1e3a8a !important;
             -webkit-print-color-adjust: exact;
           }
           .row-title { 
             background: #e2e8f0 !important; 
-            font-size: 12px !important; 
+            font-size: 14px !important; 
             color: #1e3a8a !important; 
-            width: 90px; 
+            width: 110px; 
             -webkit-print-color-adjust: exact;
           }
 
-          .bottom-container { display: flex; gap: 12px; align-items: stretch; }
-          .options-card { flex: 1; border: 3px solid #1e3a8a; border-radius: 10px; padding: 12px; }
+          .bottom-container { display: flex; gap: 20px; align-items: stretch; }
+          .options-card { flex: 1; border: 3px solid #1e3a8a; border-radius: 12px; padding: 20px; }
           .section-head { 
-            font-size: 13px; font-weight: 900; color: #1e3a8a; 
-            text-transform: uppercase; border-bottom: 3px solid #1e3a8a; margin-bottom: 10px; padding-bottom: 4px;
+            font-size: 16px; font-weight: 900; color: #1e3a8a; 
+            text-transform: uppercase; border-bottom: 3px solid #1e3a8a; margin-bottom: 15px; padding-bottom: 8px;
           }
           
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-          .item { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; color: #1e3a8a; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 800; color: #1e3a8a; }
           .check-box { 
-            width: 18px; height: 18px; border: 2px solid #1e3a8a; 
-            display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900;
+            width: 22px; height: 22px; border: 2px solid #1e3a8a; 
+            display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900;
           }
 
           .ipd-card { 
-            width: 140px; background: #1e3a8a !important; color: white !important; 
-            border-radius: 10px; text-align: center; padding: 15px;
+            width: 180px; background: #1e3a8a !important; color: white !important; 
+            border-radius: 12px; text-align: center; padding: 25px;
             display: flex; flex-direction: column; justify-content: center;
             -webkit-print-color-adjust: exact;
           }
-          .ipd-number { font-size: 45px; font-weight: 900; line-height: 1; color: white !important; }
+          .ipd-number { font-size: 55px; font-weight: 900; line-height: 1; color: white !important; }
 
           .footer { 
-            margin-top: auto; padding-top: 15px; border-top: 5px solid #1e3a8a; 
+            margin-top: auto; padding-top: 20px; border-top: 5px solid #1e3a8a; 
             display: flex; justify-content: space-between; align-items: flex-end; 
           }
-          .contact-footer { font-size: 11px; font-weight: 800; color: #1e3a8a; line-height: 1.5; }
+          .contact-footer { font-size: 13px; font-weight: 800; color: #1e3a8a; line-height: 1.6; }
           .sig-line { 
-            border-top: 3px solid #1e3a8a; width: 180px; text-align: center; 
-            padding-top: 8px; font-size: 11px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; 
+            border-top: 3px solid #1e3a8a; width: 220px; text-align: center; 
+            padding-top: 10px; font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; 
           }
         </style>
       </head>
@@ -258,9 +258,9 @@ export const handlePrintPrescription = async (order) => {
           </div>
 
           <div class="ipd-card">
-            <div style="font-size: 14px; font-weight: 900;">P.D / IPD</div>
+            <div style="font-size: 16px; font-weight: 900;">P.D / IPD</div>
             <div class="ipd-number">${order.ipd || '--'}</div>
-            <div style="font-size: 10px; font-weight: 800;">MILLIMETERS</div>
+            <div style="font-size: 12px; font-weight: 800;">MILLIMETERS</div>
           </div>
         </div>
 
