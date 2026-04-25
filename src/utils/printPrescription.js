@@ -69,107 +69,99 @@ export const handlePrintPrescription = async (order) => {
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&display=swap');
           
           @page { 
-            size: A4 portrait; 
-            margin: 15mm; 
+            size: A5 portrait; 
+            margin: 0; /* Printer-ka ayaan u deynaynaa margin-ka */
           }
+          
           * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
           
           body { 
-            width: 210mm; 
-            height: 297mm; 
-            padding: 15mm; 
+            width: 148mm; 
+            height: 210mm; 
+            padding: 8mm; /* Booska gudaha foomka */
             background: #fff; 
             display: flex; 
             flex-direction: column;
-            overflow: hidden;
             color: #1e3a8a;
+            -webkit-print-color-adjust: exact;
           }
 
           .header { 
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 8px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 25px;
+            border-bottom: 6px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 12px;
           }
-          .logo-img { height: 90px; width: auto; object-fit: contain; }
+          .logo-img { height: 60px; width: auto; object-fit: contain; }
           
           .brand-container { text-align: right; flex: 1; }
           .brand-name { 
-            font-size: 42px; 
+            font-size: 28px; 
             font-weight: 900; 
-            color: #1e3a8a; 
-            text-transform: uppercase; 
-            line-height: 0.8; 
+            line-height: 0.9; 
             letter-spacing: -1px;
           }
           .brand-sub { 
-            font-size: 14px; 
+            font-size: 10px; 
             font-weight: 800; 
-            color: #1e3a8a; 
-            letter-spacing: 5px; 
-            margin-top: 8px;
+            letter-spacing: 3px; 
+            margin-top: 4px;
             text-transform: uppercase;
           }
 
           .patient-card {
-            border: 3px solid #1e3a8a; border-radius: 12px; padding: 20px;
-            display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 15px;
-            background: #f0f4f8; margin-bottom: 25px;
+            border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px;
+            display: grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 8px;
+            background: #f8fafc; margin-bottom: 12px;
           }
-          .p-label { font-size: 12px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; opacity: 0.7; }
-          .p-info { font-size: 20px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; }
+          .p-label { font-size: 9px; font-weight: 800; opacity: 0.8; text-transform: uppercase; }
+          .p-info { font-size: 14px; font-weight: 900; text-transform: uppercase; }
 
-          .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+          .rx-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
           .rx-table th { 
             background: #1e3a8a !important; color: white !important; 
-            border: 2px solid #1e3a8a; padding: 15px; font-size: 14px; font-weight: 900;
-            -webkit-print-color-adjust: exact;
+            border: 1.5px solid #1e3a8a; padding: 8px; font-size: 11px; font-weight: 900;
           }
           .rx-table td { 
-            border: 3px solid #1e3a8a; 
-            height: 70px; 
+            border: 2px solid #1e3a8a; 
+            height: 45px; 
             text-align: center; 
-            font-size: 32px; 
+            font-size: 22px; 
             font-weight: 900; 
-            color: #1e3a8a !important;
-            -webkit-print-color-adjust: exact;
           }
           .row-title { 
-            background: #e2e8f0 !important; 
-            font-size: 14px !important; 
-            color: #1e3a8a !important; 
-            width: 110px; 
-            -webkit-print-color-adjust: exact;
+            background: #f1f5f9 !important; 
+            font-size: 10px !important; 
+            width: 80px; 
           }
 
-          .bottom-container { display: flex; gap: 20px; align-items: stretch; }
-          .options-card { flex: 1; border: 3px solid #1e3a8a; border-radius: 12px; padding: 20px; }
+          .bottom-container { display: flex; gap: 10px; align-items: stretch; }
+          .options-card { flex: 1; border: 2px solid #1e3a8a; border-radius: 8px; padding: 10px; }
           .section-head { 
-            font-size: 16px; font-weight: 900; color: #1e3a8a; 
-            text-transform: uppercase; border-bottom: 3px solid #1e3a8a; margin-bottom: 15px; padding-bottom: 8px;
+            font-size: 11px; font-weight: 900; 
+            text-transform: uppercase; border-bottom: 2px solid #1e3a8a; margin-bottom: 8px; padding-bottom: 4px;
           }
           
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-          .item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 800; color: #1e3a8a; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+          .item { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; }
           .check-box { 
-            width: 22px; height: 22px; border: 2px solid #1e3a8a; 
-            display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900;
+            width: 16px; height: 16px; border: 1.5px solid #1e3a8a; 
+            display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900;
           }
 
           .ipd-card { 
-            width: 180px; background: #1e3a8a !important; color: white !important; 
-            border-radius: 12px; text-align: center; padding: 25px;
+            width: 120px; background: #1e3a8a !important; color: white !important; 
+            border-radius: 8px; text-align: center; padding: 12px;
             display: flex; flex-direction: column; justify-content: center;
-            -webkit-print-color-adjust: exact;
           }
-          .ipd-number { font-size: 55px; font-weight: 900; line-height: 1; color: white !important; }
+          .ipd-number { font-size: 38px; font-weight: 900; line-height: 1; color: white !important; }
 
           .footer { 
-            margin-top: auto; padding-top: 20px; border-top: 5px solid #1e3a8a; 
+            margin-top: auto; padding-top: 10px; border-top: 4px solid #1e3a8a; 
             display: flex; justify-content: space-between; align-items: flex-end; 
           }
-          .contact-footer { font-size: 13px; font-weight: 800; color: #1e3a8a; line-height: 1.6; }
+          .contact-footer { font-size: 10px; font-weight: 800; line-height: 1.4; }
           .sig-line { 
-            border-top: 3px solid #1e3a8a; width: 220px; text-align: center; 
-            padding-top: 10px; font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; 
+            border-top: 2px solid #1e3a8a; width: 160px; text-align: center; 
+            padding-top: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; 
           }
         </style>
       </head>
@@ -258,9 +250,9 @@ export const handlePrintPrescription = async (order) => {
           </div>
 
           <div class="ipd-card">
-            <div style="font-size: 16px; font-weight: 900;">P.D / IPD</div>
+            <div style="font-size: 11px; font-weight: 900;">P.D / IPD</div>
             <div class="ipd-number">${order.ipd || '--'}</div>
-            <div style="font-size: 12px; font-weight: 800;">MILLIMETERS</div>
+            <div style="font-size: 8px; font-weight: 800;">MM</div>
           </div>
         </div>
 
