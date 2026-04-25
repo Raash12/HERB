@@ -32,7 +32,7 @@ const SOMALIA_DISTRICTS = {
   ],
 
   Galmudug: [
-    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer"
+    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere"
   ],
 
   "Koofur Galbeed": [
