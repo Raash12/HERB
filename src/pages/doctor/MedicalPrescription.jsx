@@ -7,7 +7,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Pill, Loader2, Trash2, ClipboardList, Stethoscope } from "lucide-react";
+import { Pill, Loader2, Trash2, ClipboardList, Stethoscope, MessageSquare } from "lucide-react";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function MedicalPrescription({ activeVisit, onClose, existingPrescription = null }) {
@@ -18,6 +18,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
   
   const [complain, setComplain] = useState(existingPrescription?.complain || "");
   const [diagnosis, setDiagnosis] = useState(existingPrescription?.diagnosis || "");
+  const [remarks, setRemarks] = useState(existingPrescription?.remarks || ""); // Remarks state added
   const [inventory, setInventory] = useState([]);
   const [prescribedItems, setPrescribedItems] = useState(
     existingPrescription?.items || [{ medicineId: "", medicineName: "", quantity: 1, dosage: "" }]
@@ -65,6 +66,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         sendTo: selectedReception,
         complain,
         diagnosis,
+        remarks, // Remarks added to payload
         items: prescribedItems,
         status: "pending",
         category: "medical",
@@ -124,6 +126,17 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
             <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><Stethoscope size={10}/> Diagnosis</label>
             <Textarea className="min-h-[70px] rounded-xl text-[11px] font-bold bg-slate-50 border-none" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
           </div>
+        </div>
+
+        {/* Remarks Section Added */}
+        <div className="space-y-1">
+          <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><MessageSquare size={10}/> Remarks / Notes</label>
+          <Textarea 
+            className="min-h-[50px] rounded-xl text-[11px] font-bold bg-slate-50 border-none" 
+            placeholder="Add any extra notes here..."
+            value={remarks} 
+            onChange={(e) => setRemarks(e.target.value)} 
+          />
         </div>
 
         <div className="space-y-2">

@@ -16,7 +16,7 @@ const SOMALIA_DISTRICTS = {
   Banaadir: [
     "Cabdiasiis","Boondheere","Dayniile","Dharkeenley","Hamar Jajab","Hamar Weyne",
     "Hodan","Howlwadaag","Huriwaa","Kaaraan","Kaxda","Shangaani","Shibis",
-    "Waaberi","Wadajir","Wardhiigley","Warta Nabada","Yaaqshiid","Garasbaaley","Gubadley"
+    "Waaberi","Wadajir","Wardhiigley","Yaaqshiid","Garasbaaley","Gubadley" ,"Darusalam" ,"gubta"
   ],
 
   Hirshabelle: [
@@ -32,7 +32,7 @@ const SOMALIA_DISTRICTS = {
   ],
 
   Galmudug: [
-    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere"
+    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere" , "galhareri"
   ],
 
   "Koofur Galbeed": [
