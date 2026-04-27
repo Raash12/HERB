@@ -14,6 +14,7 @@ import MedicalReport from "../../report/medicalReport";
 import OpticalReport from "../../report/opticalReport";
 import AdminPatients from "../reception/AdminPatients"; 
 import SecuritySettings from "../../security/SecuritySettings";
+import SalesReport from "../../report/SalesReport";
 
 // UI COMPONENTS
 import { SidebarProvider, Sidebar, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from "@/components/ui/sidebar";
@@ -161,6 +162,7 @@ export default function AdminDashboard() {
               <div className="px-6 mt-8 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Reporting</div>
               <AdminNavItem label="Medical" icon={<FileText size={18}/>} active={activeView === "medical_report"} onClick={() => setActiveView("medical_report")} />
               <AdminNavItem label="Optical" icon={<Eye size={18}/>} active={activeView === "optical_report"} onClick={() => setActiveView("optical_report")} />
+              <AdminNavItem label="Sales" icon={<TrendingUp size={18}/>} active={activeView === "sales_report"} onClick={() => setActiveView("sales_report")} />
               <AdminNavItem label="Security" icon={<Lock size={18}/>} active={activeView === "security"} onClick={() => setActiveView("security")} />
             </SidebarMenu>
           </SidebarContent>
@@ -208,6 +210,7 @@ export default function AdminDashboard() {
                     <AdminMiniStat label="Total Personnel" val={users.length} icon={<Users/>} color="emerald" />
                     <AdminMiniStat label="Inventory" val={stockCount} icon={<Zap/>} color="indigo" />
                     <AdminMiniStat label="Security Log" val="Secure" icon={<Lock/>} color="rose" />
+                    
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -342,6 +345,7 @@ export default function AdminDashboard() {
               {activeView === "medical" && <Medical />}
               {activeView === "medical_report" && <MedicalReport />}
               {activeView === "optical_report" && <OpticalReport />}
+              {activeView === "sales_report" && <SalesReport />}
               {activeView === "security" && <SecuritySettings onSuccess={() => setActiveView("dashboard")} />}
             </AnimatePresence>
           </div>

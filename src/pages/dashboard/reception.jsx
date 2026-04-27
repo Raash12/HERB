@@ -4,16 +4,22 @@ import { useNavigate } from "react-router-dom";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, where, getDoc, doc, orderBy } from "firebase/firestore";
 
-// Charts & UI
+// UI Components
 import CustomerRegistration from "../reception/CustomerRegistration";
 import ReceptionPrescriptions from "../reception/ReceptionPrescriptions"; 
 import SecuritySettings from "../../security/SecuritySettings";
+import QuickSale from "../reception/QuickSale"; 
+
 import { SidebarProvider, Sidebar, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from "@/components/ui/sidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LayoutDashboard, UserPlus, LogOut, Moon, Sun, Users, Search, FileText, Activity, Zap, ShieldCheck, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { 
+  LayoutDashboard, UserPlus, LogOut, Moon, Sun, Users, 
+  Search, FileText, Activity, Zap, ShieldCheck, 
+  ChevronLeft, ChevronRight, Loader2, ShoppingCart
+} from "lucide-react";
 
 export default function ReceptionDashboard() {
   const [activeView, setActiveView] = useState("dashboard");
@@ -25,7 +31,7 @@ export default function ReceptionDashboard() {
   const [stats, setStats] = useState({ total: 0, today: 0, pending: 0 });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [initialLoading, setInitialLoading] = useState(true); // To fix the refresh delay
+  const [initialLoading, setInitialLoading] = useState(true);
   const itemsPerPage = 8;
   const navigate = useNavigate();
 
@@ -43,7 +49,7 @@ export default function ReceptionDashboard() {
     document.documentElement.classList.toggle("dark", newDark);
   };
 
-  // Real-time Data Listeners with Auth Check fix
+  // Real-time Data Listeners
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -52,7 +58,6 @@ export default function ReceptionDashboard() {
         setUserBranch(branch);
 
         if (branch) {
-          // 1. Listen for Patients (Stats)
           const qPatients = query(collection(db, "patients"), where("branch", "==", branch));
           const unsubPatients = onSnapshot(qPatients, (snap) => {
             const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -64,19 +69,17 @@ export default function ReceptionDashboard() {
             }));
           });
 
-          // 2. Listen for Optical Prescriptions
           const qOptical = query(collection(db, "prescriptions"), where("branch", "==", branch), orderBy("createdAt", "desc"));
           const unsubOptical = onSnapshot(qOptical, (snap) => {
             const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'optical' }));
             setOpticalPrescriptions(data);
           });
 
-          // 3. Listen for Medical Prescriptions
           const qMedical = query(collection(db, "medical_prescriptions"), where("branch", "==", branch), orderBy("createdAt", "desc"));
           const unsubMedical = onSnapshot(qMedical, (snap) => {
             const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'medical' }));
             setMedicalPrescriptions(data);
-            setInitialLoading(false); // Data is now flowing
+            setInitialLoading(false);
           });
 
           return () => {
@@ -93,7 +96,6 @@ export default function ReceptionDashboard() {
     return () => unsubscribeAuth();
   }, [navigate]);
 
-  // Combine data whenever either changes
   useEffect(() => {
     const combined = [...opticalPrescriptions, ...medicalPrescriptions].sort((a, b) => 
       (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
@@ -105,14 +107,12 @@ export default function ReceptionDashboard() {
     }));
   }, [opticalPrescriptions, medicalPrescriptions]);
 
-  // Filter & Pagination
   const filteredData = allPrescriptions.filter(item => 
     (item.patientName || item.displayName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Show loader while initial data is fetching
   if (initialLoading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-[#020617]">
@@ -124,7 +124,7 @@ export default function ReceptionDashboard() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden font-['Segoe_UI']">
+      <div className="flex h-screen w-full overflow-hidden">
         <Sidebar className="border-r border-white/5 bg-[#0F172A] text-slate-400 h-screen shrink-0">
           <SidebarContent className="p-6">
             <div className="flex items-center gap-3 mb-10 px-2 text-white">
@@ -134,15 +134,16 @@ export default function ReceptionDashboard() {
             <SidebarMenu className="space-y-2">
               <NavItem label="Overview" icon={<LayoutDashboard size={20} />} active={activeView === "dashboard"} onClick={() => setActiveView("dashboard")} />
               <NavItem label="Register" icon={<UserPlus size={20} />} active={activeView === "registration"} onClick={() => setActiveView("registration")} />
+              <NavItem label="Direct Sale" icon={<ShoppingCart size={20} />} active={activeView === "quicksale"} onClick={() => setActiveView("quicksale")} />
               <NavItem label="Prescriptions" icon={<FileText size={20} />} active={activeView === "prescriptions"} onClick={() => setActiveView("prescriptions")} />
               <NavItem label="Privacy" icon={<ShieldCheck size={20} />} active={activeView === "settings"} onClick={() => setActiveView("settings")} />
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-6 border-t border-white/5">
-            <button onClick={toggleDark} className="flex items-center gap-4 w-full p-3 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 rounded-xl">
+            <button onClick={toggleDark} className="flex items-center gap-4 w-full p-3 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 rounded-xl transition-colors">
               {darkMode ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} className="text-blue-400" />} Theme
             </button>
-            <button onClick={() => signOut(auth).then(() => navigate("/"))} className="flex items-center gap-4 w-full p-3 text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10 rounded-xl mt-2">
+            <button onClick={() => signOut(auth).then(() => navigate("/"))} className="flex items-center gap-4 w-full p-3 text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10 rounded-xl mt-2 transition-colors">
               <LogOut size={18} /> Exit System
             </button>
           </SidebarFooter>
@@ -158,6 +159,8 @@ export default function ReceptionDashboard() {
                 <MiniStat label="Status" value="Active" icon={<Zap size={18}/>} color="rose" />
               </div>
             )}
+
+            {activeView === "quicksale" && <QuickSale />}
 
             {activeView === "prescriptions" && (
               <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
