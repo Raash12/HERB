@@ -14,6 +14,7 @@ export const handleInvoicePrint = async (patient, visit) => {
     email: HARDCODED_EMAIL
   };
 
+  // ✅ Halkan ayaan ku xirnay visit.department si ay labaduba (Eye, Ear) ugu soo baxaan risiitka
   let fetchedDept = visit.department || "Eye";
   let fetchedDoctor = visit.doctorName || "General";
   let fetchedPhone = patient.phone || "N/A";
@@ -28,15 +29,16 @@ export const handleInvoicePrint = async (patient, visit) => {
       const patientDoc = await getDoc(doc(db, "patients", patientId));
       if (patientDoc.exists()) {
         const pData = patientDoc.data();
-        fetchedDept = pData.lastDept || pData.department || fetchedDept;
-        fetchedDoctor = pData.doctorName || fetchedDoctor;
+        // Hubi inaan mudnaanta siino waxa hadda la soo doortay (visit.department)
+        fetchedDept = visit.department || pData.lastDept || pData.department || fetchedDept;
+        fetchedDoctor = visit.doctorName || pData.doctorName || fetchedDoctor;
         fetchedPhone = pData.phone || pData.telephone || pData.phoneNo || fetchedPhone;
         fetchedState = pData.state || fetchedState;
         fetchedDistrict = pData.address || fetchedDistrict;
       }
     }
 
-    // ✅ 2. Branch Data (KAN AYAAN SAXNAY)
+    // ✅ 2. Branch Data
     const currentUser = auth.currentUser;
     if (currentUser) {
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -56,9 +58,6 @@ export const handleInvoicePrint = async (patient, visit) => {
             actualBranchData.telephone ||
             actualBranchData.phoneNo ||
             branchInfo.phone;
-
-          // haddii aad rabto email DB:
-          // branchInfo.email = actualBranchData.email || HARDCODED_EMAIL;
         }
       }
     }

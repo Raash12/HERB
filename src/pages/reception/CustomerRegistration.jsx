@@ -10,43 +10,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox"; 
 import { Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, Printer, ChevronLeft, ChevronRight, CheckCircle2, Calendar, Pencil, Trash2 } from "lucide-react";
 
 const SOMALIA_DISTRICTS = {
-  Banaadir: [
-    "Cabdiasiis","Boondheere","Dayniile","Dharkeenley","Hamar Jajab","Hamar Weyne",
-    "Hodan","Howlwadaag","Huriwaa","Kaaraan","Kaxda","Shangaani","Shibis",
-    "Waaberi","Wadajir","Wardhiigley","Yaaqshiid","Garasbaaley","Gubadley" ,"Darusalam" ,"gubta"
-  ],
-
-  Hirshabelle: [
-    "Jowhar","Balcad","Mahaday","Adan Yabaal","Beledweyne","Buulo Burte","Jalalaqsi","Matabaan" , "Warsheekh","Cadale" ,"Maxaas"
-  ],
-
-  Puntland: [
-    "Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla" , "Bandar Qaasim" ,"Caluula" , "Iskushuban" ,"Carmo" , "Galdogob" ,"Jariiban" ,"Bacadweyn"
-  ],
-
-  Jubaland: [
-    "Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley" ,"Garbahaarey " , "Baardheere" , "Ceelwaaq" , "Luuq" ,"Belet Xaawo" ,"Buurdhuubo" ,"Bu'aale " , "Jilib" , "Saakow" ,"Jilib"
-  ],
-
-  Galmudug: [
-    "Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere" , "galhareri"
-  ],
-
-  "Koofur Galbeed": [
-    "Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere"
-  ],
-
-  Somaliland: [
-    "Hargeisa","Berbera","Burao","Borama","Erigavo"
-  ],
-
-  "Waqoyi Bari": [
-    "Laascaanood","Taleex","Xudun"
-  ]
-};const SOMALI_STATES = ["Banaadir", "Galmudug", "Puntland", "Jubaland", "Hirshabelle", "Koofur Galbeed", "Somaliland", "Waqoyi Bari"];
+  Banaadir: ["Cabdiasiis","Boondheere","Dayniile","Dharkeenley","Hamar Jajab","Hamar Weyne","Hodan","Howlwadaag","Huriwaa","Kaaraan","Kaxda","Shangaani","Shibis","Waaberi","Wadajir","Wardhiigley","Yaaqshiid","Garasbaaley","Gubadley" ,"Darusalam" ,"gubta"],
+  Hirshabelle: ["Jowhar","Balcad","Mahaday","Adan Yabaal","Beledweyne","Buulo Burte","Jalalaqsi","Matabaan" , "Warsheekh","Cadale" ,"Maxaas"],
+  Puntland: ["Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla" , "Bandar Qaasim" ,"Caluula" , "Iskushuban" ,"Carmo" , "Galdogob" ,"Jariiban" ,"Bacadweyn"],
+  Jubaland: ["Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley" ,"Garbahaarey " , "Baardheere" , "Ceelwaaq" , "Luuq" ,"Belet Xaawo" ,"Buurdhuubo" ,"Bu'aale " , "Jilib" , "Saakow" ,"Jilib"],
+  Galmudug: ["Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere" , "galhareri"],
+  "Koofur Galbeed": ["Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere"],
+  Somaliland: ["Hargeisa","Berbera","Burao","Borama","Erigavo"],
+  "Waqoyi Bari": ["Laascaanood","Taleex","Xudun"]
+};
+const SOMALI_STATES = Object.keys(SOMALIA_DISTRICTS);
 
 export default function CustomerRegistration() {
   const [loading, setLoading] = useState(false);
@@ -67,7 +44,6 @@ export default function CustomerRegistration() {
     department: "", doctorId: "", doctorName: "", amount: ""
   });
 
-  // 1. Fetch User Branch & Doctors
   useEffect(() => {
     const fetchContext = async () => {
       const currentUser = auth.currentUser;
@@ -84,7 +60,6 @@ export default function CustomerRegistration() {
     fetchContext();
   }, []);
 
-  // 2. REAL-TIME LISTENER
   useEffect(() => {
     if (!myBranch) return;
     const q = query(collection(db, "patients"), where("branch", "==", myBranch), orderBy("createdAt", "desc"));
@@ -102,6 +77,20 @@ export default function CustomerRegistration() {
 
   const resetForm = () => {
     setFormData({ fullName: "", phone: "", address: "", state: "", age: "", gender: "", department: "", doctorId: "", doctorName: "", amount: "" });
+  };
+
+  // Logic oggolaanaya multi-select checkbox
+  const handleDeptToggle = (dept) => {
+    setFormData(prev => {
+      const currentDepts = prev.department ? prev.department.split(", ") : [];
+      let newDepts;
+      if (currentDepts.includes(dept)) {
+        newDepts = currentDepts.filter(d => d !== dept);
+      } else {
+        newDepts = [...currentDepts, dept];
+      }
+      return { ...prev, department: newDepts.join(", ") };
+    });
   };
 
   const handleRegisterNew = async (e) => {
@@ -125,7 +114,6 @@ export default function CustomerRegistration() {
   };
 
   const handleResend = async (e) => {
-    
     e.preventDefault();
     setLoading(true);
     try {
@@ -145,7 +133,6 @@ export default function CustomerRegistration() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  // 3. EDIT PATIENT (Eye and Ear lagu daray)
   const handleEdit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -153,15 +140,14 @@ export default function CustomerRegistration() {
       await updateDoc(doc(db, "patients", selectedPatient.id), {
         fullName: formData.fullName, phone: formData.phone, address: formData.address,
         state: formData.state, age: formData.age, gender: formData.gender,
-        lastDept: formData.department // Kani wuxuu muhiim u yahay Invoice-ka dambe
+        lastDept: formData.department 
       });
       setEditOpen(false); resetForm(); showSuccessNotification();
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  // 4. DELETE PATIENT
   const handleDelete = async (id) => {
-    if (window.confirm("Ma hubtaa inaad tirtirto bukaankan? Xogtiisa oo dhan ayaa bixi doonta.")) {
+    if (window.confirm("Ma hubtaa inaad tirtirto bukaankan?")) {
       try {
         await deleteDoc(doc(db, "patients", id));
         showSuccessNotification();
@@ -179,7 +165,7 @@ export default function CustomerRegistration() {
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto relative">
       {success && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-full duration-300">
-           <div className="bg-green-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-green-400">
+           <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-blue-400">
               <CheckCircle2 size={20} />
               <span className="font-black uppercase tracking-widest text-sm">Action Successful!</span>
            </div>
@@ -208,7 +194,7 @@ export default function CustomerRegistration() {
       {/* TABLE */}
       <Card className="shadow-xl border-none overflow-hidden bg-card rounded-xl">
         <Table>
-          <TableHeader className="bg-slate-900">
+          <TableHeader className="bg-blue-600">
             <TableRow>
               <TableCell className="text-white font-bold py-5 pl-6 uppercase text-[10px] tracking-widest">Patient Info</TableCell>
               <TableCell className="text-white font-bold text-center uppercase text-[10px]">Registered</TableCell>
@@ -233,7 +219,7 @@ export default function CustomerRegistration() {
                   </div>
                 </TableCell>
                 <TableCell className="text-center">
-                  <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px] font-black">{p.visitCount || 1} Visits</Badge>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px] font-black">{p.visitCount || 1} Visits</Badge>
                 </TableCell>
                 <TableCell className="text-center font-semibold text-xs text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-1">
@@ -246,24 +232,13 @@ export default function CustomerRegistration() {
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-blue-600 text-blue-600" onClick={() => { setSelectedPatient(p); setFormData({...p, department: p.lastDept || ""}); setEditOpen(true); }}><Pencil size={14}/></Button>
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-red-600 text-red-600" onClick={() => handleDelete(p.id)}><Trash2 size={14}/></Button>
                     <Button variant="outline" size="sm" className="h-8 px-2 border-green-600 text-green-600 text-[10px] font-bold" onClick={() => handleInvoicePrint(p, { amount: p.lastAmount || 0, department: p.lastDept || 'General', doctorName: p.doctorName || 'MD' })}><Printer size={14} className="mr-1"/> INVOICE</Button>
-                    <Button size="sm" className="bg-indigo-600 h-8 px-2 text-[10px] font-bold" onClick={() => { 
-  setSelectedPatient(p);
- setFormData(prev => ({
-  ...prev,
-  department: "",
-  amount: "",
-  doctorId: "",
-  doctorName: ""
-}));
-  setResendOpen(true);
-}}><RefreshCcw size={14} className="mr-1"/> RESEND</Button>
+                    <Button size="sm" className="bg-blue-600 h-8 px-2 text-[10px] font-bold" onClick={() => { setSelectedPatient(p); setFormData(prev => ({ ...prev, department: "", amount: "", doctorId: "", doctorName: "" })); setResendOpen(true); }}><RefreshCcw size={14} className="mr-1"/> RESEND</Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-
         <div className="flex items-center justify-between px-6 py-4 bg-slate-50/50 border-t">
           <p className="text-[11px] font-bold text-muted-foreground uppercase">Showing {currentRecords.length} records</p>
           <div className="flex items-center gap-2">
@@ -275,384 +250,162 @@ export default function CustomerRegistration() {
       </Card>
 
       {/* NEW PATIENT DIALOG */}
-   {/* NEW PATIENT DIALOG */}
-<Dialog open={open} onOpenChange={setOpen}>
-  <DialogContent className="max-w-2xl">
-    <DialogHeader>
-      <DialogTitle className="text-2xl font-black text-blue-600 uppercase">
-        New Patient
-      </DialogTitle>
-    </DialogHeader>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle className="text-2xl font-black text-blue-600 uppercase">New Patient</DialogTitle></DialogHeader>
+          <form onSubmit={handleRegisterNew} className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="text-[10px] font-black uppercase">Full Name</label>
+              <Input value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} required />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase">Age</label>
+              <Input type="number" value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} required />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase">Gender</label>
+              <select className="w-full p-2 border rounded-md text-sm" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })} required>
+                <option value="">Select</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase">Phone</label>
+              <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} required />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase">State</label>
+              <select className="w-full p-2 border rounded-md text-sm" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value, address: "" })} required>
+                <option value="">Select State</option>
+                {SOMALI_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-[10px] font-black uppercase">District</label>
+              <select className="w-full p-2 border rounded-md text-sm" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} required>
+                <option value="">Select District</option>
+                {SOMALIA_DISTRICTS[formData.state]?.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            
+            <div className="col-span-2 grid grid-cols-3 gap-3 border-t pt-4">
+              <div>
+                <label className="text-[10px] font-black uppercase block mb-2 text-blue-600">Depts (Multiple)</label>
+                <div className="flex gap-4 items-center h-10 px-2 bg-blue-50/50 rounded-md border border-blue-100">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="eye_new" checked={formData.department.includes("Eye")} onCheckedChange={() => handleDeptToggle("Eye")} />
+                    <label htmlFor="eye_new" className="text-sm font-bold cursor-pointer">Eye</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="ear_new" checked={formData.department.includes("Ear")} onCheckedChange={() => handleDeptToggle("Ear")} />
+                    <label htmlFor="ear_new" className="text-sm font-bold cursor-pointer">Ear</label>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase">Doctor</label>
+                <select className="w-full p-2 border rounded-md text-sm" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
+                  <option value="">Select</option>
+                  {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-red-600">Amount ($)</label>
+                <Input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} required />
+              </div>
+            </div>
+            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase" disabled={loading}>
+              {loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-    <form onSubmit={handleRegisterNew} className="grid grid-cols-2 gap-4">
-      
-      <div className="col-span-2">
-        <label className="text-[10px] font-black uppercase">Full Name</label>
-        <Input
-          value={formData.fullName}
-          onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-          required
-        />
-      </div>
+      {/* RESEND DIALOG */}
+      <Dialog open={resendOpen} onOpenChange={setResendOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader><DialogTitle className="text-xl font-black text-blue-600 uppercase">Returning Visit</DialogTitle></DialogHeader>
+          {selectedPatient && (
+            <form onSubmit={handleResend} className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <p className="font-bold text-blue-900">{selectedPatient.fullName}</p>
+                <Badge className="mt-2 bg-blue-600 text-white">Visit #{(selectedPatient.visitCount || 1) + 1}</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase block mb-2 text-blue-600">Depts</label>
+                  <div className="flex gap-4 items-center h-10 px-2 bg-blue-50/50 rounded-md border border-blue-100">
+                    <div className="flex items-center gap-1.5">
+                      <Checkbox id="eye_res" checked={formData.department.includes("Eye")} onCheckedChange={() => handleDeptToggle("Eye")} />
+                      <label htmlFor="eye_res" className="text-xs font-bold cursor-pointer">Eye</label>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Checkbox id="ear_res" checked={formData.department.includes("Ear")} onCheckedChange={() => handleDeptToggle("Ear")} />
+                      <label htmlFor="ear_res" className="text-xs font-bold cursor-pointer">Ear</label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-red-600">Amount ($)</label>
+                  <Input type="number" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} required />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase">Assign Doctor</label>
+                <select className="w-full p-2 border rounded-md text-sm" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
+                  <option value="">Select Doctor</option>
+                  {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
+                </select>
+              </div>
+              <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-black uppercase" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" /> : "Complete & Print"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
-      <div>
-        <label className="text-[10px] font-black uppercase">Age</label>
-        <Input
-          type="number"
-          value={formData.age}
-          onChange={e => setFormData({ ...formData, age: e.target.value })}
-          required
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">Gender</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.gender}
-          onChange={e => setFormData({ ...formData, gender: e.target.value })}
-          required
-        >
-          <option value="">Select</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">Phone</label>
-        <Input
-          value={formData.phone}
-          onChange={e => setFormData({ ...formData, phone: e.target.value })}
-          required
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">State</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.state}
-          onChange={e =>
-            setFormData({
-              ...formData,
-              state: e.target.value,
-              address: "" // reset district
-            })
-          }
-          required
-        >
-          <option value="">Select State</option>
-          {SOMALI_STATES.map(s => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="col-span-2">
-        <label className="text-[10px] font-black uppercase">District</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.address}
-          onChange={e =>
-            setFormData({ ...formData, address: e.target.value })
-          }
-          required
-        >
-          <option value="">Select District</option>
-          {SOMALIA_DISTRICTS[formData.state]?.map(d => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="col-span-2 grid grid-cols-3 gap-3 border-t pt-4">
-        <div>
-          <label className="text-[10px] font-black uppercase">Dept</label>
-          <select
-            className="w-full p-2 border rounded-md text-sm"
-            value={formData.department}
-            onChange={e =>
-              setFormData({ ...formData, department: e.target.value })
-            }
-            required
-          >
-            <option value="">Select</option>
-            <option value="Eye">Eye</option>
-            <option value="Ear">Ear</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-[10px] font-black uppercase">Doctor</label>
-          <select
-            className="w-full p-2 border rounded-md text-sm"
-            value={formData.doctorId}
-            onChange={e => {
-              const d = doctors.find(x => x.id === e.target.value);
-              setFormData({
-                ...formData,
-                doctorId: e.target.value,
-                doctorName: d?.fullName || ""
-              });
-            }}
-            required
-          >
-            <option value="">Select</option>
-            {doctors.map(d => (
-              <option key={d.id} value={d.id}>
-                {d.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="text-[10px] font-black uppercase text-red-600">
-            Amount ($)
-          </label>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.amount}
-            onChange={e =>
-              setFormData({ ...formData, amount: e.target.value })
-            }
-            required
-          />
-        </div>
-      </div>
-
-      <Button
-        type="submit"
-        className="col-span-2 bg-blue-600 h-12 font-black uppercase"
-        disabled={loading}
-      >
-        {loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}
-      </Button>
-    </form>
-  </DialogContent>
-</Dialog>
-
-
-{/* RESEND / RETURNING VISIT DIALOG */}
-<Dialog open={resendOpen} onOpenChange={setResendOpen}>
-  <DialogContent className="max-w-md rounded-2xl">
-
-    <DialogHeader>
-      <DialogTitle className="text-xl font-black text-indigo-600 uppercase">
-        Returning Visit
-      </DialogTitle>
-    </DialogHeader>
-
-    {selectedPatient && (
-      <form onSubmit={handleResend} className="space-y-4">
-
-        {/* PATIENT INFO */}
-        <div className="bg-slate-100 p-4 rounded-xl">
-          <p className="font-bold">{selectedPatient.fullName}</p>
-          <Badge className="mt-2 bg-indigo-600 text-white">
-            Visit #{(selectedPatient.visitCount || 1) + 1}
-          </Badge>
-        </div>
-
-        {/* DEPARTMENT + AMOUNT */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] font-black uppercase">Dept</label>
-            <select
-              className="w-full p-2 border rounded-md text-sm"
-              value={formData.department}
-              onChange={e =>
-                setFormData({ ...formData, department: e.target.value })
-              }
-              required
-            >
-              <option value="">Select</option>
-              <option value="Eye">Eye</option>
-              <option value="Ear">Ear</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black uppercase text-red-600">
-              Amount ($)
-            </label>
-            <Input
-              type="number"
-              value={formData.amount}
-              onChange={e =>
-                setFormData({ ...formData, amount: e.target.value })
-              }
-              required
-            />
-          </div>
-        </div>
-
-        {/* DOCTOR */}
-        <div>
-          <label className="text-[10px] font-black uppercase">
-            Assign Doctor
-          </label>
-          <select
-            className="w-full p-2 border rounded-md text-sm"
-            value={formData.doctorId}
-            onChange={e => {
-              const d = doctors.find(x => x.id === e.target.value);
-              setFormData({
-                ...formData,
-                doctorId: e.target.value,
-                doctorName: d?.fullName || ""
-              });
-            }}
-            required
-          >
-            <option value="">Select Doctor</option>
-            {doctors.map(d => (
-              <option key={d.id} value={d.id}>
-                {d.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* BUTTON */}
-        <Button
-          type="submit"
-          className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase"
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="animate-spin" /> : "Complete & Print"}
-        </Button>
-
-      </form>
-    )}
-
-  </DialogContent>
-</Dialog>
-
-
-{/* EDIT DIALOG */}
-<Dialog open={editOpen} onOpenChange={setEditOpen}>
-  <DialogContent className="max-w-xl">
-    <DialogHeader>
-      <DialogTitle className="text-xl font-black text-blue-600 uppercase">
-        Edit Patient
-      </DialogTitle>
-    </DialogHeader>
-
-    <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4">
-
-      <div className="col-span-2">
-        <label className="text-[10px] font-black uppercase">Full Name</label>
-        <Input
-          value={formData.fullName}
-          onChange={e =>
-            setFormData({ ...formData, fullName: e.target.value })
-          }
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">Age</label>
-        <Input
-          type="number"
-          value={formData.age}
-          onChange={e =>
-            setFormData({ ...formData, age: e.target.value })
-          }
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">Gender</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.gender}
-          onChange={e =>
-            setFormData({ ...formData, gender: e.target.value })
-          }
-        >
-          <option value="">Select</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">Phone</label>
-        <Input
-          value={formData.phone}
-          onChange={e =>
-            setFormData({ ...formData, phone: e.target.value })
-          }
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] font-black uppercase">State</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.state}
-          onChange={e =>
-            setFormData({
-              ...formData,
-              state: e.target.value,
-              address: ""
-            })
-          }
-        >
-          <option value="">Select State</option>
-          {SOMALI_STATES.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="col-span-2">
-        <label className="text-[10px] font-black uppercase">District</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.address}
-          onChange={e =>
-            setFormData({ ...formData, address: e.target.value })
-          }
-        >
-          <option value="">Select District</option>
-          {SOMALIA_DISTRICTS[formData.state]?.map(d => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="col-span-2">
-        <label className="text-[10px] font-black uppercase">Department</label>
-        <select
-          className="w-full p-2 border rounded-md text-sm"
-          value={formData.department}
-          onChange={e =>
-            setFormData({ ...formData, department: e.target.value })
-          }
-        >
-          <option value="">Select</option>
-          <option value="Eye">Eye</option>
-          <option value="Ear">Ear</option>
-        </select>
-      </div>
-
-      <Button
-        type="submit"
-        className="col-span-2 bg-blue-600 h-12 font-black uppercase"
-      >
-        {loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}
-      </Button>
-    </form>
-  </DialogContent>
-</Dialog>
+      {/* EDIT DIALOG */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle className="text-xl font-black text-blue-600 uppercase">Edit Patient</DialogTitle></DialogHeader>
+          <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4">
+            <div className="col-span-2"><label className="text-[10px] font-black uppercase">Full Name</label><Input value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} /></div>
+            <div><label className="text-[10px] font-black uppercase">Age</label><Input type="number" value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} /></div>
+            <div><label className="text-[10px] font-black uppercase">Gender</label>
+              <select className="w-full p-2 border rounded-md text-sm" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
+                <option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option>
+              </select>
+            </div>
+            <div><label className="text-[10px] font-black uppercase">Phone</label><Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
+            <div><label className="text-[10px] font-black uppercase">State</label>
+              <select className="w-full p-2 border rounded-md text-sm" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value, address: "" })}>
+                <option value="">Select State</option>{SOMALI_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2"><label className="text-[10px] font-black uppercase">District</label>
+              <select className="w-full p-2 border rounded-md text-sm" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}>
+                <option value="">Select District</option>{SOMALIA_DISTRICTS[formData.state]?.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-[10px] font-black uppercase block mb-2 text-blue-600">Department</label>
+              <div className="flex gap-6 items-center h-10 border rounded-md px-3 bg-blue-50/50 border-blue-100">
+                <div className="flex items-center gap-2">
+                  <Checkbox id="eye_edit" checked={formData.department.includes("Eye")} onCheckedChange={() => handleDeptToggle("Eye")} />
+                  <label htmlFor="eye_edit" className="text-sm font-bold cursor-pointer">Eye</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="ear_edit" checked={formData.department.includes("Ear")} onCheckedChange={() => handleDeptToggle("Ear")} />
+                  <label htmlFor="ear_edit" className="text-sm font-bold cursor-pointer">Ear</label>
+                </div>
+              </div>
+            </div>
+            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase">{loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
