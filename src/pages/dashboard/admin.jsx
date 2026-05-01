@@ -16,7 +16,6 @@ import AdminPatients from "../reception/AdminPatients";
 import SecuritySettings from "../../security/SecuritySettings";
 import SalesReport from "../../report/SalesReport";
 import StaffManagement from "../StaffManagement";
-// HALKAN AYAA LAGU WACAY BRANCH MANAGEMENT
 import BranchManagement from "../branches/BranchManagement"; 
 
 // UI COMPONENTS
@@ -128,37 +127,23 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-y-auto custom-scrollbar relative">
           <div className="max-w-7xl mx-auto p-10 space-y-10">
             
-            {/* WELCOME BANNER */}
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative p-10 rounded-[3rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl">
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles size={16} className="text-blue-600 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600">Administrator</span>
-                  </div>
-                  <h2 className="text-4xl font-black tracking-tight dark:text-white">
-                    Network <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">Analytics</span>
-                  </h2>
-                </div>
-                <div className="bg-blue-600/5 p-4 rounded-3xl border border-blue-600/10">
-                   <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Global Patient Count</p>
-                   <p className="text-3xl font-black dark:text-white">{patientCount}</p>
-                </div>
-              </div>
-            </motion.div>
+            {/* WELCOME BANNER WAA LAGA SAARAY */}
 
             <AnimatePresence mode="wait">
               {activeView === "dashboard" && (
-                <motion.div key="dash" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-10">
+                <motion.div key="dash" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-10">
+                  
+                  {/* MINI STATS CARDS */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <AdminMiniStat label="Branches" val={branches.length} icon={<Building2/>} color="blue" />
                     <AdminMiniStat label="Total Personnel" val={users.length} icon={<Users/>} color="emerald" />
                     <AdminMiniStat label="Inventory" val={stockCount} icon={<Activity/>} color="indigo" />
-                    <AdminMiniStat label="Security Log" val="Secure" icon={<Lock/>} color="rose" />
+                    <AdminMiniStat label="Total Patients" val={patientCount} icon={<UserRoundSearch/>} color="rose" />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                     <Card className="lg:col-span-2 border-none shadow-2xl rounded-[3.5rem] bg-white dark:bg-slate-900 p-10 overflow-hidden">
+                      <h3 className="font-black uppercase text-[10px] tracking-[0.4em] text-slate-400 mb-6">Patient Growth</h3>
                       <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={[{n: 'Jan', v: 20}, {n: 'Feb', v: 45}, {n: 'Mar', v: 38}, {n: 'Apr', v: patientCount}]}>
@@ -189,17 +174,21 @@ export default function AdminDashboard() {
                            </PieChart>
                          </ResponsiveContainer>
                        </div>
+                       <div className="mt-4 space-y-2 w-full">
+                          {roleData.map((r, i) => (
+                            <div key={i} className="flex justify-between items-center px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                              <span className="text-[10px] font-black uppercase text-slate-500">{r.name}</span>
+                              <span className="text-sm font-black dark:text-white">{r.value}</span>
+                            </div>
+                          ))}
+                       </div>
                     </Card>
                   </div>
                 </motion.div>
               )}
 
-              {/* BRANCHES VIEW - HADDA WAA COMPONENT GOONI AH */}
-              {activeView === "branches" && (
-                <BranchManagement branches={branches} fetchData={fetchData} />
-              )}
-
-              {/* CALLING OTHER MODULAR VIEWS */}
+              {/* OTHER VIEWS */}
+              {activeView === "branches" && <BranchManagement branches={branches} fetchData={fetchData} />}
               {activeView === "users" && <StaffManagement users={users} branches={branches} fetchData={fetchData} />}
               {activeView === "patients" && <AdminPatients />}
               {activeView === "medical" && <Medical />}

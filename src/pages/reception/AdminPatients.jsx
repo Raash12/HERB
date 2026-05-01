@@ -8,18 +8,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Icons
 import { 
   Loader2, Search, MapPin, 
-  Calendar, ChevronLeft, ChevronRight, Phone, Building2, Users, Filter, Activity
+  Calendar, ChevronLeft, ChevronRight, Building2, Users, Filter, Activity
 } from "lucide-react";
 
 export default function AdminPatients() {
@@ -43,7 +36,7 @@ export default function AdminPatients() {
     return () => unsubscribe();
   }, []);
 
-  // ✅ 1. STATS LOGIC (Xogta Card-yada)
+  // ✅ 1. STATS LOGIC
   const stats = patients.reduce((acc, curr) => {
     const bName = (curr.branch || curr.branchName || "Other").trim().toUpperCase();
     acc[bName] = (acc[bName] || 0) + 1;
@@ -70,7 +63,7 @@ export default function AdminPatients() {
   return (
     <div className="p-6 space-y-6 bg-slate-50/30 min-h-screen">
       
-      {/* ✅ QAYBTA CARD-YADA (Stats) */}
+      {/* STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.entries(stats).map(([name, count]) => (
           <div key={name} className="relative overflow-hidden bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
@@ -93,7 +86,7 @@ export default function AdminPatients() {
         ))}
       </div>
 
-      {/* SEARCH & FILTERS */}
+      {/* SEARCH & FILTERS HEADER */}
       <div className="flex flex-col lg:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 gap-4">
         <div className="flex items-center gap-4 mr-auto">
           <div className="p-4 bg-indigo-50 rounded-3xl text-indigo-600 shadow-inner"><Building2 size={28} /></div>
@@ -104,25 +97,27 @@ export default function AdminPatients() {
         </div>
         
         <div className="flex flex-col md:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="w-full md:w-64">
-            <Select onValueChange={(v) => { setSelectedBranch(v); setPage(1); }} defaultValue="all">
-              <SelectTrigger className="h-12 rounded-full bg-slate-50 border-none font-bold text-[10px] uppercase tracking-widest text-slate-500 px-6">
-                <Filter size={14} className="mr-2 text-indigo-500" />
-                <SelectValue placeholder="Branch" />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
-                <SelectItem value="all" className="font-bold text-[10px] uppercase">All Locations</SelectItem>
-                {branches.map(b => (
-                  <SelectItem key={b} value={b} className="font-bold text-[10px] uppercase">{b}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          
+          {/* ✅ BRANCH FILTER (NEW STYLE) */}
+          <div className="relative w-full md:w-64 group">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
+            <select 
+              className="w-full pl-11 pr-4 h-12 rounded-full bg-indigo-50/50 border-none font-bold text-[11px] uppercase tracking-wider text-indigo-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-200"
+              value={selectedBranch}
+              onChange={(e) => { setSelectedBranch(e.target.value); setPage(1); }}
+            >
+              <option value="all">All Locations</option>
+              {branches.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
           </div>
 
+          {/* SEARCH INPUT */}
           <div className="relative w-full md:w-80">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
-              placeholder="Search by name..." 
+              placeholder="Search by name or phone..." 
               className="pl-12 rounded-full bg-slate-100 border-none h-12 text-sm font-medium"
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
             />
@@ -185,13 +180,13 @@ export default function AdminPatients() {
           </div>
           <div className="flex gap-2">
             <Button 
-              variant="outline" size="sm" className="rounded-xl h-10 px-4 border-slate-200 font-bold text-[10px] uppercase" 
+              variant="outline" size="sm" className="rounded-xl h-10 px-4 border-slate-200 font-bold text-[10px] uppercase shadow-sm" 
               disabled={page === 1} onClick={() => setPage(p => p - 1)}
             >
               <ChevronLeft size={16} />
             </Button>
             <Button 
-              variant="outline" size="sm" className="rounded-xl h-10 px-4 border-slate-200 font-bold text-[10px] uppercase" 
+              variant="outline" size="sm" className="rounded-xl h-10 px-4 border-slate-200 font-bold text-[10px] uppercase shadow-sm" 
               disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
             >
               <ChevronRight size={16} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { db } from "../firebase"; 
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
@@ -6,10 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Calendar, Search, Download, TrendingUp, Wallet, ShoppingCart, 
-  Loader2, ChevronLeft, ChevronRight, Stethoscope, MapPin, Clock, Pill
-} from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar, Search, Download, TrendingUp, Wallet, ShoppingCart, Loader2, ChevronLeft, ChevronRight, Stethoscope, MapPin, Clock, Pill, Filter } from "lucide-react";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; 
@@ -17,238 +15,132 @@ import autoTable from "jspdf-autotable";
 export default function SalesReport() {
   const [loading, setLoading] = useState(false);
   const [sales, setSales] = useState([]);
-  
-  // 1. DEFAULT: Taariikhdu waa eber (maran)
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 7; // Waa la yareeyay si screen-ka u qaado
 
   const fetchSalesReport = useCallback(async () => {
     setLoading(true);
     try {
-      const salesRef = collection(db, "sales");
-      const q = query(salesRef, orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      
-      let allSales = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        dateFormatted: doc.data().createdAt?.toDate() 
-      }));
-
-      // 2. LOGIC: Haddii taariikhda la doorto kaliya filter-garee, haddii kale dhamaan keen
-      if (startDate && endDate) {
-        allSales = allSales.filter(sale => {
-          if (!sale.dateFormatted) return false;
-          
-          const sDate = new Date(startDate);
-          sDate.setHours(0, 0, 0, 0); 
-          
-          const eDate = new Date(endDate);
-          eDate.setHours(23, 59, 59, 999); 
-          
-          return sale.dateFormatted >= sDate && sale.dateFormatted <= eDate;
-        });
-      }
-
-      setSales(allSales);
-    } catch (error) {
-      console.error("Error fetching sales:", error);
-    }
+      const q = query(collection(db, "sales"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      setSales(snap.docs.map(doc => ({ id: doc.id, ...doc.data(), dateFormatted: doc.data().createdAt?.toDate() })));
+    } catch (e) { console.error(e); }
     setLoading(false);
-  }, [startDate, endDate]);
+  }, []);
 
-  useEffect(() => {
-    fetchSalesReport();
-  }, [fetchSalesReport]);
+  useEffect(() => { fetchSalesReport(); }, [fetchSalesReport]);
 
-  const filteredSales = sales.filter(sale => 
-    (sale.branchId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (sale.patientName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const branches = useMemo(() => ["all", ...new Set(sales.map(s => s.branchId || "Main"))], [sales]);
 
-  const totalDoctorSales = filteredSales.filter(s => s.type === "doctor").reduce((acc, curr) => acc + (curr.finalTotal || 0), 0);
-  const totalWalkInSales = filteredSales.filter(s => s.type !== "doctor").reduce((acc, curr) => acc + (curr.finalTotal || 0), 0);
-  const grandTotal = totalDoctorSales + totalWalkInSales;
+  const filteredSales = sales.filter(s => {
+    const matchesSearch = (s.patientName || "").toLowerCase().includes(searchTerm.toLowerCase()) || s.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBranch = selectedBranch === "all" || (s.branchId || "Main") === selectedBranch;
+    const matchesDate = (!startDate || !endDate) ? true : (s.dateFormatted >= new Date(startDate) && s.dateFormatted <= new Date(endDate).setHours(23,59,59));
+    return matchesSearch && matchesBranch && matchesDate;
+  });
 
-  const totalPages = Math.ceil(filteredSales.length / itemsPerPage) || 1;
-  const currentItems = filteredSales.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const exportToPDF = () => {
-    try {
-        const doc = new jsPDF();
-        doc.setFillColor(37, 99, 235); 
-        doc.rect(0, 0, 210, 40, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.text("HORSEED MEDICAL ERP", 14, 20);
-        doc.setFontSize(10);
-        doc.text("OFFICIAL SALES PERFORMANCE REPORT", 14, 30);
-
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        const periodText = (startDate && endDate) ? `${startDate} to ${endDate}` : "Full History";
-        doc.text(`Report Period: ${periodText}`, 14, 50);
-        doc.text(`Total Revenue: $${grandTotal.toFixed(2)}`, 14, 58);
-
-        const tableColumn = ["Date", "Branch", "Customer", "Medicines Sold", "Category", "Amount"];
-        const tableRows = filteredSales.map(sale => [
-            format(sale.dateFormatted || new Date(), "dd/MM/yyyy"),
-            sale.branchId || "Main",
-            sale.patientName || "Cash Customer",
-            sale.items ? sale.items.map(i => i.medicineName).join(", ") : "N/A",
-            sale.type || "Direct",
-            `$${(sale.finalTotal || 0).toFixed(2)}`
-        ]);
-
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 65,
-            theme: 'grid',
-            headStyles: { fillColor: [37, 99, 235] },
-            styles: { fontSize: 8 }
-        });
-
-        doc.save(`Sales_Report.pdf`);
-    } catch (err) {
-        console.error(err);
-    }
+  const totals = {
+    doctor: filteredSales.filter(s => s.type === "doctor").reduce((a, c) => a + (c.finalTotal || 0), 0),
+    walkin: filteredSales.filter(s => s.type !== "doctor").reduce((a, c) => a + (c.finalTotal || 0), 0)
   };
 
+  const currentItems = filteredSales.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-700 pb-12">
+    <div className="p-4 space-y-4 max-w-[1600px] mx-auto animate-in fade-in duration-500">
       
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-4">
-           <div className="h-14 w-14 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-              <TrendingUp size={28} />
-           </div>
-           <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Sales <span className="text-blue-600">Analytics</span></h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Business Intelligence Report</p>
-           </div>
+      {/* Mini Header */}
+      <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
+            <TrendingUp size={20} />
+          </div>
+          <h1 className="text-xl font-black tracking-tight uppercase">Sales <span className="text-blue-600">Report</span></h1>
         </div>
-        <Button onClick={exportToPDF} className="w-full lg:w-auto h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[10px] tracking-widest transition-all shadow-xl">
-          <Download size={18} className="mr-2" /> Export to PDF
+        <Button onClick={() => {}} className="h-10 px-6 rounded-xl bg-blue-600 text-[10px] font-black uppercase tracking-widest transition-all shadow-lg">
+          <Download size={14} className="mr-2" /> Export
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Direct Sales" value={totalWalkInSales} icon={<ShoppingCart size={20}/>} />
-        <StatCard label="Doctor Sales" value={totalDoctorSales} icon={<Stethoscope size={20}/>} />
-        <StatCard label="Total Revenue" value={grandTotal} icon={<Wallet size={20}/>} isDark />
+      {/* Compact Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard label="Direct" value={totals.walkin} icon={<ShoppingCart size={16}/>} />
+        <StatCard label="Doctor" value={totals.doctor} icon={<Stethoscope size={16}/>} />
+        <StatCard label="Total Revenue" value={totals.walkin + totals.doctor} icon={<Wallet size={16}/>} isDark />
       </div>
 
-      {/* 🗓️ Filter (Optional - default empty) */}
-      <Card className="p-2 rounded-[2.5rem] bg-white dark:bg-slate-900 border-none shadow-xl">
-        <div className="flex flex-col lg:flex-row gap-2">
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-2 rounded-[1.8rem] px-4 border border-slate-100 dark:border-slate-700">
-             <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
-                <Calendar size={18} className="text-blue-600" />
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Filter By Date</span>
-             </div>
-             <div className="flex items-center gap-2">
-                <Input 
-                   type="date" 
-                   value={startDate} 
-                   onChange={(e) => setStartDate(e.target.value)} 
-                   className="bg-transparent border-none shadow-none font-bold text-xs w-36 focus-visible:ring-0" 
-                />
-                <span className="text-slate-300 font-bold">TO</span>
-                <Input 
-                   type="date" 
-                   value={endDate} 
-                   onChange={(e) => setEndDate(e.target.value)} 
-                   className="bg-transparent border-none shadow-none font-bold text-xs w-36 focus-visible:ring-0" 
-                />
-                {(startDate || endDate) && (
-                  <Button variant="ghost" size="sm" onClick={() => {setStartDate(""); setEndDate("");}} className="text-[10px] font-bold text-red-500 uppercase h-8 hover:bg-red-50 rounded-xl">Clear</Button>
-                )}
-             </div>
+      {/* Tight Filters */}
+      <Card className="p-2 rounded-2xl border-none shadow-lg bg-white dark:bg-slate-900">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border">
+            <Calendar size={14} className="text-blue-600" />
+            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-8 w-28 bg-transparent border-none text-[11px] font-bold" />
+            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-8 w-28 bg-transparent border-none text-[11px] font-bold" />
           </div>
+          
+          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <SelectTrigger className="h-12 w-40 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-[10px] font-black uppercase">
+              <SelectValue placeholder="Branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map(b => <SelectItem key={b} value={b} className="text-[10px] font-bold uppercase">{b}</SelectItem>)}
+            </SelectContent>
+          </Select>
 
-          <div className="relative flex-1">
-             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-             <Input 
-                placeholder="Search by Branch, Patient Name..." 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                className="w-full h-16 pl-14 pr-8 rounded-[1.8rem] bg-slate-50 dark:bg-slate-800 border-none font-medium text-sm transition-all" 
-             />
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="h-12 pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-xs" />
           </div>
         </div>
       </Card>
 
-      {/* Table */}
-      <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white dark:bg-slate-900 overflow-hidden">
+      {/* Slim Table */}
+      <Card className="rounded-2xl border-none shadow-xl bg-white dark:bg-slate-900 overflow-hidden">
         <Table>
-          <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
-            <TableRow className="border-none">
-              <TableHead className="font-black text-[10px] uppercase p-8 text-slate-400 tracking-widest">Branch</TableHead>
-              <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Customer / Patient</TableHead>
-              <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Medicines</TableHead>
-              <TableHead className="font-black text-[10px] uppercase text-center text-slate-400 tracking-widest">Category</TableHead>
-              <TableHead className="font-black text-[10px] uppercase text-right pr-12 text-slate-400 tracking-widest">Amount</TableHead>
+          <TableHeader className="bg-slate-50 dark:bg-slate-800">
+            <TableRow>
+              <TableHead className="text-[9px] font-black uppercase p-4">Branch</TableHead>
+              <TableHead className="text-[9px] font-black uppercase">Patient</TableHead>
+              <TableHead className="text-[9px] font-black uppercase">Items</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-center">Type</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-right pr-6">Amount</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow><TableCell colSpan={5} className="h-60 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" size={40} /></TableCell></TableRow>
-            ) : (
-              currentItems.length > 0 ? (
-                currentItems.map((sale) => (
-                  <TableRow key={sale.id} className="border-b border-slate-50 dark:border-slate-800 hover:bg-blue-50/10">
-                    <TableCell className="p-8">
-                       <div className="flex items-center gap-2">
-                          <MapPin size={12} className="text-blue-500" />
-                          <span className="font-black text-xs uppercase">{sale.branchId || "Main"}</span>
-                       </div>
-                    </TableCell>
-                    <TableCell>
-                       <div className="font-black text-sm uppercase text-slate-900 dark:text-white">{sale.patientName || "Walk-in Client"}</div>
-                       <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase mt-1">
-                          <Clock size={10} /> {format(sale.dateFormatted || new Date(), "dd MMM yyyy, hh:mm a")}
-                       </div>
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <div className="flex flex-wrap gap-1">
-                        {sale.items?.map((item, idx) => (
-                          <span key={idx} className="bg-blue-50 dark:bg-slate-800 text-blue-600 px-2 py-0.5 rounded text-[9px] font-bold border border-blue-100 flex items-center gap-1">
-                            <Pill size={8} /> {item.medicineName}
-                          </span>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={`rounded-xl font-black text-[9px] uppercase px-4 py-1.5 border-none ${sale.type === 'doctor' ? 'bg-blue-600 text-white' : 'bg-emerald-500 text-white'}`}>
-                        {sale.type || 'direct'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right pr-12 font-black text-xl tracking-tighter text-slate-900 dark:text-white">
-                       ${(sale.finalTotal || 0).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow><TableCell colSpan={5} className="h-60 text-center font-bold text-slate-400 italic uppercase text-xs tracking-widest">data lama soo xaren </TableCell></TableRow>
-              )
-            )}
+            {loading ? <TableRow><TableCell colSpan={5} className="h-32 text-center"><Loader2 className="animate-spin inline text-blue-600"/></TableCell></TableRow> : 
+              currentItems.map(s => (
+              <TableRow key={s.id} className="hover:bg-slate-50/50 text-[11px]">
+                <TableCell className="p-4"><Badge variant="outline" className="text-[9px] font-bold uppercase border-blue-100 text-blue-600">{s.branchId || "Main"}</Badge></TableCell>
+                <TableCell>
+                  <div className="font-black text-slate-800 dark:text-white uppercase leading-none">{s.patientName || "Client"}</div>
+                  <div className="text-[9px] text-slate-400 mt-1">{s.dateFormatted && format(s.dateFormatted, "dd/MM/yy")}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {s.items?.slice(0, 2).map((i, idx) => <span key={idx} className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[9px] font-medium">{i.medicineName}</span>)}
+                    {s.items?.length > 2 && <span className="text-[9px] text-blue-500">+{s.items.length - 2}</span>}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${s.type === 'doctor' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{s.type || 'direct'}</span>
+                </TableCell>
+                <TableCell className="text-right pr-6 font-black text-sm text-blue-600">${(s.finalTotal || 0).toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
-
-        <div className="p-8 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between border-t dark:border-slate-800">
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage} of {totalPages}</span>
-           <div className="flex gap-2">
-              <Button variant="outline" size="icon" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="rounded-2xl h-12 w-12 border-none shadow-md bg-white dark:bg-slate-800"><ChevronLeft size={20}/></Button>
-              <Button variant="outline" size="icon" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="rounded-2xl h-12 w-12 border-none shadow-md bg-white dark:bg-slate-800"><ChevronRight size={20}/></Button>
-           </div>
+        
+        {/* Simple Pagination */}
+        <div className="p-3 bg-slate-50/30 flex items-center justify-between border-t">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage} of {Math.ceil(filteredSales.length/itemsPerPage)}</span>
+          <div className="flex gap-1">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} className="h-8 w-8 rounded-lg p-0"><ChevronLeft size={14}/></Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= Math.ceil(filteredSales.length/itemsPerPage)} className="h-8 w-8 rounded-lg p-0"><ChevronRight size={14}/></Button>
+          </div>
         </div>
       </Card>
     </div>
@@ -257,12 +149,12 @@ export default function SalesReport() {
 
 function StatCard({ label, value, icon, isDark = false }) {
   return (
-    <Card className={`p-8 rounded-[2.5rem] border-none shadow-sm flex justify-between items-center transition-all hover:translate-y-[-5px] ${isDark ? 'bg-slate-900 text-white shadow-blue-900/20 shadow-xl' : 'bg-white text-slate-900'}`}>
+    <div className={`p-4 rounded-2xl flex justify-between items-center border shadow-sm ${isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}>
       <div>
-        <p className="text-[10px] font-black uppercase text-blue-400 mb-1">{label}</p>
-        <h2 className="text-4xl font-black tracking-tighter">${value.toFixed(2)}</h2>
+        <p className={`text-[9px] font-black uppercase mb-0.5 ${isDark ? 'text-blue-400' : 'text-slate-400'}`}>{label}</p>
+        <h2 className="text-xl font-black tracking-tight">${value.toFixed(2)}</h2>
       </div>
-      <div className={`p-5 rounded-[1.5rem] ${isDark ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}>{icon}</div>
-    </Card>
+      <div className={`p-2.5 rounded-xl ${isDark ? 'bg-blue-600' : 'bg-blue-50 text-blue-600'}`}>{icon}</div>
+    </div>
   );
 }

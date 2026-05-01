@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, 
-  DialogDescription, DialogFooter, DialogTrigger 
+  DialogFooter, DialogTrigger 
 } from "@/components/ui/dialog";
 import { 
   Search, Trash2, Edit3, Plus, Package, 
-  ChevronLeft, ChevronRight, Loader2, Building2 
+  ChevronLeft, ChevronRight, Loader2, Building2, Filter
 } from "lucide-react";
 
 export default function Medical() {
@@ -24,6 +24,7 @@ export default function Medical() {
   const [stock, setStock] = useState([]);
   const [branches, setBranches] = useState([]); 
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState("all"); // Branch Filter State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,7 +38,7 @@ export default function Medical() {
     branchId: "" 
   });
 
-  // 1. INITIAL LOAD: User and Branches
+  // 1. INITIAL LOAD
   useEffect(() => {
     const fetchInitialData = async () => {
       const user = auth.currentUser;
@@ -56,8 +57,7 @@ export default function Medical() {
     fetchInitialData();
   }, []);
 
-  // 2. REAL-TIME DATA LISTENER (onSnapshot)
-  // Habkan ayaa ah kan xogta keenaya isla marka bogga la furo (No more manual fetch)
+  // 2. REAL-TIME DATA LISTENER
   useEffect(() => {
     if (!userData) return;
 
@@ -77,7 +77,7 @@ export default function Medical() {
     return () => unsubscribe(); 
   }, [userData]);
 
-  // 3. STATS CALCULATION
+  // 3. STATS
   const branchStats = useMemo(() => {
     return stock.reduce((acc, curr) => {
       const bName = curr.branchId || "Unknown";
@@ -86,11 +86,12 @@ export default function Medical() {
     }, {});
   }, [stock]);
 
-  // 4. FILTER & PAGINATION
-  const filteredStock = stock.filter(item => 
-    item.medicineName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.branchId?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // 4. FILTER LOGIC (Search + Branch Filter)
+  const filteredStock = stock.filter(item => {
+    const matchesSearch = item.medicineName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBranch = selectedBranchFilter === "all" || item.branchId === selectedBranchFilter;
+    return matchesSearch && matchesBranch;
+  });
 
   const totalPages = Math.ceil(filteredStock.length / itemsPerPage) || 1;
   const currentItems = filteredStock.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -130,10 +131,10 @@ export default function Medical() {
   return (
     <div className="p-6 space-y-6 bg-slate-50/30 min-h-screen">
       
-      {/* BRANCH STATS CARDS */}
+      {/* STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {Object.entries(branchStats).map(([name, count]) => (
-          <div key={name} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div key={name} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
               <Building2 size={24} />
             </div>
@@ -145,8 +146,8 @@ export default function Medical() {
         ))}
       </div>
 
-      {/* SEARCH & ACTIONS HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 gap-4">
+      {/* SEARCH & BRANCH FILTER HEADER */}
+      <div className="flex flex-col xl:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 gap-4">
         <div className="flex items-center gap-4">
           <div className="p-4 bg-indigo-50 rounded-3xl text-indigo-600 shadow-inner"><Package size={28} /></div>
           <div>
@@ -155,12 +156,28 @@ export default function Medical() {
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="relative w-full md:w-80">
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full xl:w-auto">
+          {/* Branch Filter Dropdown */}
+          <div className="relative w-full md:w-60 group">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
+            <select 
+              className="w-full pl-11 pr-4 h-12 rounded-full bg-indigo-50/50 border-none font-bold text-[11px] uppercase tracking-wider text-indigo-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-200"
+              value={selectedBranchFilter}
+              onChange={(e) => { setSelectedBranchFilter(e.target.value); setCurrentPage(1); }}
+            >
+              <option value="all">All Branches</option>
+              {Object.keys(branchStats).map(bName => (
+                <option key={bName} value={bName}>{bName}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative w-full md:w-72">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
-              placeholder="Search..." 
-              className="pl-12 rounded-full bg-slate-100 border-none h-12"
+              placeholder="Search medicine..." 
+              className="pl-12 rounded-full bg-slate-100 border-none h-12 text-sm font-medium"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
@@ -168,8 +185,8 @@ export default function Medical() {
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditId(null); setForm({ medicineName: "", quantity: "", unitPrice: "", branchId: userData?.branch || "" }); }} className="bg-indigo-600 hover:bg-indigo-700 rounded-full px-8 h-12 font-black uppercase text-[11px] shadow-lg">
-                <Plus className="mr-2" size={20} /> Add New Medicine
+              <Button onClick={() => { setEditId(null); setForm({ medicineName: "", quantity: "", unitPrice: "", branchId: userData?.branch || "" }); }} className="bg-indigo-600 hover:bg-indigo-700 rounded-full px-8 h-12 font-black uppercase text-[11px] shadow-lg w-full md:w-auto">
+                <Plus className="mr-2" size={20} /> Add New
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-[2.5rem] p-10 max-w-md border-none shadow-2xl">
@@ -183,11 +200,11 @@ export default function Medical() {
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Select Branch</label>
                         <select 
-                          className="w-full h-14 rounded-2xl bg-slate-50 border-none px-6 font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                          className="w-full h-14 rounded-2xl bg-slate-50 border-none px-6 font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
                           value={form.branchId}
                           onChange={(e) => setForm({...form, branchId: e.target.value})}
                         >
-                          <option value="">Dooro Branch-ga</option>
+                          <option value="">Choose Branch</option>
                           {branches.map((b) => (
                             <option key={b.id} value={b.id}>{b.branchName || b.name}</option>
                           ))}
@@ -219,7 +236,7 @@ export default function Medical() {
         </div>
       </div>
 
-      {/* MAIN TABLE SECTION */}
+      {/* TABLE SECTION */}
       <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-50">
         <div className="grid grid-cols-6 p-6 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">
           <div className="pl-4">Medicine</div>
@@ -239,7 +256,9 @@ export default function Medical() {
             return (
               <div key={item.id} className="grid grid-cols-6 p-6 items-center hover:bg-indigo-50/10 transition-all group">
                 <div className="pl-4 font-black text-slate-700 uppercase text-sm">{item.medicineName}</div>
-                <div className="text-center font-bold text-slate-500 uppercase text-[10px]">{item.branchId}</div>
+                <div className="text-center">
+                  <span className="bg-slate-100 text-slate-500 font-bold px-3 py-1 rounded-lg text-[9px] uppercase">{item.branchId}</span>
+                </div>
                 <div className="text-center">
                     <Badge className="bg-indigo-50 text-indigo-600 border-none font-black px-4 py-1.5 rounded-xl text-[10px]">{qty} PCS</Badge>
                 </div>
@@ -247,7 +266,7 @@ export default function Medical() {
                 <div className="text-center font-black text-indigo-900 text-lg">${totalStockValue.toFixed(2)}</div>
                 <div className="flex justify-end gap-2 pr-4">
                   <Button variant="ghost" size="icon" onClick={() => { setEditId(item.id); setForm(item); setIsDialogOpen(true); }} className="text-indigo-500 h-10 w-10 hover:bg-indigo-50 rounded-xl"><Edit3 size={18} /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => { if(confirm("Ma tirtirtaa?")) deleteDoc(doc(db, "branch_medicines", item.id)); }} className="text-red-400 h-10 w-10 hover:bg-red-50 rounded-xl"><Trash2 size={18} /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => { if(confirm("Are you sure?")) deleteDoc(doc(db, "branch_medicines", item.id)); }} className="text-red-400 h-10 w-10 hover:bg-red-50 rounded-xl"><Trash2 size={18} /></Button>
                 </div>
               </div>
             );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db, auth } from "../../firebase";
 import { 
   collection, query, where, onSnapshot, orderBy, 
-  doc, limit, deleteDoc, getCountFromServer, getDocs, startAfter 
+  doc, getDoc, getDocs 
 } from "firebase/firestore";
 
 // UI Components
@@ -18,25 +18,93 @@ import HistorySheet from "./HistorySheet";
 
 // Icons
 import { 
-  Loader2, Search, Pill, Trash2, Glasses, 
-  User, History, Calendar, ChevronLeft, ChevronRight 
+  Loader2, Search, Pill, Glasses, 
+  User, History, Calendar, Clock, ChevronLeft, ChevronRight, Phone
 } from "lucide-react";
 
-const PAGE_SIZE = 10; // Inta qof ee hal mar soo baxaaya
+// Component: Fetch Phone
+const PatientInfoRow = ({ patientId, onPhoneFetch }) => {
+  const [phone, setPhone] = useState("...");
+  useEffect(() => {
+    const fetchPhone = async () => {
+      if (!patientId) return;
+      const pSnap = await getDoc(doc(db, "patients", patientId));
+      if (pSnap.exists()) {
+        const pData = pSnap.data().phone || "No Phone";
+        setPhone(pData);
+        if (onPhoneFetch) onPhoneFetch(patientId, pData);
+      }
+    };
+    fetchPhone();
+  }, [patientId]);
+  return <span>{phone}</span>;
+};
+
+// Component: Auto Status Checker (Check if Medical or Optical exists)
+const StatusBadge = ({ visitId, initialStatus }) => {
+  const [status, setStatus] = useState(initialStatus || "waiting");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const checkPrescriptions = async () => {
+      try {
+        const [medSnap, optSnap] = await Promise.all([
+          getDocs(query(collection(db, "medical_prescriptions"), where("visitId", "==", visitId))),
+          getDocs(query(collection(db, "prescriptions"), where("visitId", "==", visitId)))
+        ]);
+
+        if (!medSnap.empty || !optSnap.empty) {
+          setStatus("completed");
+        } else {
+          setStatus(initialStatus || "waiting");
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkPrescriptions();
+  }, [visitId, initialStatus]);
+
+  if (checking) return <div className="h-4 w-12 bg-slate-100 animate-pulse rounded-full mx-auto" />;
+
+  return (
+    <Badge className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border-none ${
+        status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'
+      }`}>
+      {status}
+    </Badge>
+  );
+};
+
+const VisitCounter = ({ patientId }) => {
+  const [countNumber, setCountNumber] = useState(0);
+  useEffect(() => {
+    const fetchCount = async () => {
+      if (!patientId) return;
+      const q = query(collection(db, "visits"), where("patientId", "==", patientId));
+      const snapshot = await getDocs(q);
+      setCountNumber(snapshot.size);
+    };
+    fetchCount();
+  }, [patientId]);
+  return (
+    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-black px-3 py-1 rounded-lg">
+      {countNumber} {countNumber === 1 ? 'Visit' : 'Visits'}
+    </Badge>
+  );
+};
+
+const PAGE_SIZE = 10;
 
 export default function DoctorAppointments() {
   const [visits, setVisits] = useState([]);
+  const [patientPhones, setPatientPhones] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [visitCounts, setVisitCounts] = useState({});
-  
-  // Pagination States
-  const [lastDoc, setLastDoc] = useState(null);
-  const [firstDoc, setFirstDoc] = useState(null);
   const [page, setPage] = useState(1);
-  const [isLastPage, setIsLastPage] = useState(false);
-
-  const [actionLoading, setActionLoading] = useState({ id: null, type: null });
+  
   const [historyOpen, setHistoryOpen] = useState(false);
   const [medicalOpen, setMedicalOpen] = useState(false);
   const [opticalOpen, setOpticalOpen] = useState(false);
@@ -47,93 +115,39 @@ export default function DoctorAppointments() {
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [selectedPatientName, setSelectedPatientName] = useState("");
 
-  // 1. Fetch Visit Counts (Optimization: Only fetch for visible patients)
-  const fetchVisitCounts = async (uniqueList) => {
-    const counts = { ...visitCounts };
-    for (const patient of uniqueList) {
-      if (patient.patientId && !counts[patient.patientId]) {
-        const q = query(collection(db, "visits"), where("patientId", "==", patient.patientId));
-        const snapshot = await getCountFromServer(q);
-        counts[patient.patientId] = snapshot.data().count;
-      }
-    }
-    setVisitCounts(counts);
-  };
-
-  // 2. Main Fetch Function
-  const fetchVisits = async (direction = "next") => {
+  useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    setLoading(true);
-    let q;
+    const q = query(
+      collection(db, "visits"),
+      where("doctorId", "==", currentUser.uid),
+      orderBy("createdAt", "desc")
+    );
 
-    if (direction === "next" && lastDoc) {
-      q = query(
-        collection(db, "visits"),
-        where("doctorId", "==", currentUser.uid),
-        orderBy("createdAt", "desc"),
-        startAfter(lastDoc),
-        limit(PAGE_SIZE)
-      );
-    } else if (direction === "prev" && firstDoc) {
-      // Note: Firestore pagination works better forward. For simple "Prev", 
-      // we usually re-query or use a state cache. Here we refresh current view.
-      q = query(
-        collection(db, "visits"),
-        where("doctorId", "==", currentUser.uid),
-        orderBy("createdAt", "desc"),
-        limit(PAGE_SIZE)
-      );
-      setPage(1); 
-    } else {
-      q = query(
-        collection(db, "visits"),
-        where("doctorId", "==", currentUser.uid),
-        orderBy("createdAt", "desc"),
-        limit(PAGE_SIZE)
-      );
-    }
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setVisits(data);
+      setLoading(false);
+    });
 
-    const snap = await getDocs(q);
-    
-    if (!snap.empty) {
-      const rawData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setVisits(rawData);
-      setFirstDoc(snap.docs[0]);
-      setLastDoc(snap.docs[snap.docs.length - 1]);
-      setIsLastPage(snap.docs.length < PAGE_SIZE);
-      fetchVisitCounts(rawData);
-    } else {
-      setVisits([]);
-      setIsLastPage(true);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchVisits();
+    return () => unsubscribe();
   }, []);
 
-  const handleNext = () => {
-    setPage(p => p + 1);
-    fetchVisits("next");
+  const handlePhoneFetch = (id, phone) => {
+    setPatientPhones(prev => ({ ...prev, [id]: phone }));
   };
 
-  const handlePrev = () => {
-    if (page > 1) {
-      setPage(1); // Reset to first for simplicity in this logic
-      fetchVisits("initial");
-    }
-  };
+  const filteredVisits = visits.filter(v => {
+    const nameMatch = v.patientName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const phoneMatch = patientPhones[v.patientId]?.includes(searchTerm);
+    return nameMatch || phoneMatch;
+  });
 
-  // 3. Filter Logic (Local filter for the current page)
-  const filteredVisits = visits.filter(v => 
-    v.patientName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const totalPages = Math.ceil(filteredVisits.length / PAGE_SIZE) || 1;
+  const currentVisits = filteredVisits.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleAction = async (visit, type) => {
-    setActionLoading({ id: visit.id, type });
     setActiveVisit(visit);
     try {
       if (type === 'history') {
@@ -141,89 +155,104 @@ export default function DoctorAppointments() {
         setSelectedPatientName(visit.patientName);
         setHistoryOpen(true);
       } else if (type === 'meds') {
-        setExistingMed(null);
         const q = query(collection(db, "medical_prescriptions"), where("visitId", "==", visit.id));
         const snap = await getDocs(q);
-        if (!snap.empty) setExistingMed({ id: snap.docs[0].id, ...snap.docs[0].data() });
+        setExistingMed(!snap.empty ? { id: snap.docs[0].id, ...snap.docs[0].data() } : null);
         setMedicalOpen(true);
       } else if (type === 'optical') {
-        setExistingOptical(null);
         const q = query(collection(db, "prescriptions"), where("visitId", "==", visit.id));
         const snap = await getDocs(q);
-        if (!snap.empty) setExistingOptical({ id: snap.docs[0].id, ...snap.docs[0].data() });
+        setExistingOptical(!snap.empty ? { id: snap.docs[0].id, ...snap.docs[0].data() } : null);
         setOpticalOpen(true);
       }
     } catch (error) { console.error(error); }
-    setActionLoading({ id: null, type: null });
   };
 
   return (
-    <div className="p-8 space-y-8 bg-slate-50 min-h-screen font-sans">
+    <div className="p-8 space-y-8 bg-slate-50 min-h-screen">
       
-      {/* HEADER */}
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-6">
         <div>
-          <h2 className="font-black text-5xl tracking-tighter uppercase text-blue-600">Appointments</h2>
-          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-blue-50 inline-block">
-            Page {page} — {filteredVisits.length} Records
+          <h2 className="font-black text-5xl tracking-tighter uppercase text-blue-600 italic">Doctor Queue</h2>
+          <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest bg-blue-100/50 px-4 py-2 rounded-full mt-2 inline-block">
+            {filteredVisits.length} Records Found
           </p>
         </div>
 
-        <div className="relative group w-full md:w-80">
+        <div className="relative w-full md:w-96">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
           <input 
-            placeholder="SEARCH IN THIS PAGE..." 
-            className="w-full pl-12 h-14 bg-white rounded-2xl border-none shadow-lg font-black uppercase text-[11px] focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-            onChange={(e) => setSearchTerm(e.target.value)} 
+            placeholder="SEARCH BY NAME OR PHONE..." 
+            className="w-full pl-14 h-16 bg-white rounded-2xl border-none shadow-xl font-black uppercase text-[11px] focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-300" 
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} 
           />
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="max-w-6xl mx-auto bg-white rounded-[3rem] shadow-sm border border-blue-50/50 overflow-hidden">
+      <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-blue-50 overflow-hidden">
         {loading ? (
-          <div className="flex justify-center items-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>
+          <div className="flex justify-center items-center py-32"><Loader2 className="animate-spin text-blue-600" size={50} /></div>
         ) : (
           <Table>
-            <TableHeader className="bg-blue-600">
+            <TableHeader className="bg-blue-600"> 
               <TableRow className="hover:bg-transparent border-none">
-                <TableCell className="text-white font-black py-8 pl-12 uppercase text-[11px] tracking-widest">Patient Details</TableCell>
-                <TableCell className="text-white font-black text-center uppercase text-[11px] tracking-widest">Status</TableCell>
-                <TableCell className="text-white font-black text-right pr-12 uppercase text-[11px] tracking-widest">Quick Actions</TableCell>
+                <TableCell className="text-white font-black py-8 pl-10 uppercase text-[10px] tracking-widest">Patient Details</TableCell>
+                <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Visit No.</TableCell>
+                <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Time</TableCell>
+                <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Status</TableCell>
+                <TableCell className="text-white font-black text-right pr-10 uppercase text-[10px] tracking-widest">Actions</TableCell>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVisits.map((v) => (
+              {currentVisits.map((v) => (
                 <TableRow key={v.id} className="hover:bg-blue-50/20 transition-all border-slate-50">
-                  <TableCell className="py-7 pl-12">
+                  <TableCell className="py-7 pl-10">
                     <div className="flex items-center gap-5">
-                      <div className="bg-blue-100/50 p-4 rounded-2xl text-blue-600 shadow-inner"><User size={24} /></div>
+                      <div className="h-14 w-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                        <User size={24} />
+                      </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <div className="font-black uppercase text-[17px] tracking-tight text-slate-800">{v.patientName}</div>
-                          <Badge className="bg-blue-600 text-white text-[9px] h-5 px-2 rounded-full">#{visitCounts[v.patientId] || 1}</Badge>
-                        </div>
-                        <div className="text-[11px] text-blue-500 font-bold mt-1 uppercase flex items-center gap-2">
-                          <span>{v.phone}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="flex items-center gap-1"><Calendar size={10}/> {v.createdAt?.toDate().toLocaleDateString('en-GB')}</span>
+                        <div className="font-black uppercase text-lg text-slate-800 leading-none">{v.patientName}</div>
+                        <div className="mt-1 flex items-center gap-2 text-blue-500 font-bold text-[11px] uppercase tracking-wide">
+                          <Phone size={12}/> 
+                          <PatientInfoRow patientId={v.patientId} onPhoneFetch={handlePhoneFetch} />
                         </div>
                       </div>
                     </div>
                   </TableCell>
+
                   <TableCell className="text-center">
-                    <Badge className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-none ${
-                        v.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
-                      }`}>
-                      {v.status || 'pending'}
-                    </Badge>
+                    <VisitCounter patientId={v.patientId} />
                   </TableCell>
-                  <TableCell className="text-right pr-12">
-                    <div className="flex items-center justify-end gap-3">
-                      <Button variant="ghost" className="h-12 w-12 rounded-2xl border border-slate-100" onClick={() => handleAction(v, 'history')}><History size={18} /></Button>
-                      <Button variant="ghost" className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white" onClick={() => handleAction(v, 'meds')}><Pill size={16} className="mr-2" /> Meds</Button>
-                      <Button variant="ghost" className="h-12 px-6 rounded-2xl font-black uppercase text-[10px] text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white" onClick={() => handleAction(v, 'optical')}><Glasses size={16} className="mr-2" /> Optical</Button>
-                      <Button variant="ghost" className="h-12 w-12 rounded-2xl text-red-300 hover:text-red-600" onClick={async () => { if(window.confirm("Are you sure?")) { await deleteDoc(doc(db, "visits", v.id)); fetchVisits(); } }}><Trash2 size={18} /></Button>
+
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="font-black text-slate-700 text-sm flex items-center gap-1.5">
+                        <Clock size={13} className="text-blue-500"/>
+                        {v.createdAt?.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                        {v.createdAt?.toDate().toLocaleDateString('en-GB')}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="text-center">
+                    {/* Halkan ayaan ku daray auto-checker-ka status-ka */}
+                    <StatusBadge visitId={v.id} initialStatus={v.status} />
+                  </TableCell>
+
+                  <TableCell className="text-right pr-10">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button variant="ghost" className="h-12 w-12 rounded-xl bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all" onClick={() => handleAction(v, 'history')}>
+                        <History size={18} />
+                      </Button>
+                      <Button variant="ghost" className="h-12 px-6 rounded-xl font-black uppercase text-[10px] text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white transition-all border border-blue-100" onClick={() => handleAction(v, 'meds')}>
+                        <Pill size={14} className="mr-2" /> Medical
+                      </Button>
+                      <Button variant="ghost" className="h-12 px-6 rounded-xl font-black uppercase text-[10px] text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white transition-all border border-blue-100" onClick={() => handleAction(v, 'optical')}>
+                        <Glasses size={16} className="mr-2" /> Optical
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -232,48 +261,35 @@ export default function DoctorAppointments() {
           </Table>
         )}
 
-        {/* PAGINATION CONTROLS */}
-        <div className="bg-white p-6 border-t border-slate-50 flex items-center justify-between">
-          <Button 
-            variant="outline" 
-            disabled={page === 1 || loading} 
-            onClick={handlePrev}
-            className="rounded-xl font-black uppercase text-[10px] tracking-widest border-slate-200"
-          >
-            <ChevronLeft size={16} className="mr-2"/> Previous
+        <div className="bg-slate-50/50 p-6 flex items-center justify-between border-t border-slate-100">
+          <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-xl h-10 px-4 font-black uppercase text-[9px] tracking-widest shadow-sm">
+            <ChevronLeft size={16} className="mr-1"/> Back
           </Button>
-          
-          <span className="font-black text-slate-400 text-[11px] uppercase tracking-widest">
-            Page {page}
+          <span className="font-black text-slate-400 text-[10px] uppercase tracking-widest">
+            Page {page} of {totalPages}
           </span>
-
-          <Button 
-            variant="outline" 
-            disabled={isLastPage || loading} 
-            onClick={handleNext}
-            className="rounded-xl font-black uppercase text-[10px] tracking-widest border-slate-200"
-          >
-            Next <ChevronRight size={16} className="ml-2"/>
+          <Button variant="outline" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="rounded-xl h-10 px-4 font-black uppercase text-[9px] tracking-widest shadow-sm">
+            Next <ChevronRight size={16} className="ml-1"/>
           </Button>
         </div>
       </div>
 
-      {/* DIALOGS - Keep original Dialog logic here */}
+      {/* DIALOGS */}
       <Dialog open={medicalOpen} onOpenChange={setMedicalOpen}>
-        <DialogContent className="sm:max-w-[700px] p-0 border-none rounded-[2rem] overflow-hidden shadow-2xl">
+        <DialogContent className="sm:max-w-[750px] p-0 border-none rounded-[2rem] overflow-hidden">
            <MedicalPrescription activeVisit={activeVisit} existingPrescription={existingMed} onClose={() => setMedicalOpen(false)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={opticalOpen} onOpenChange={setOpticalOpen}>
-        <DialogContent className="sm:max-w-[900px] p-0 border-none rounded-[2.5rem] overflow-hidden shadow-2xl">
+        <DialogContent className="sm:max-w-[950px] p-0 border-none rounded-[2rem] overflow-hidden">
            <OpticalPrescriptionPage activeVisit={activeVisit} existingPrescription={existingOptical} onClose={() => setOpticalOpen(false)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="sm:max-w-[1000px] w-[95vw] p-0 border-none rounded-[2rem] overflow-hidden shadow-2xl">
-          <div className="h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[1100px] w-[95vw] p-0 border-none rounded-[2.5rem] overflow-hidden">
+          <div className="h-[85vh] flex flex-col">
             <HistorySheet patientId={selectedPatientId} patientName={selectedPatientName} />
           </div>
         </DialogContent>
