@@ -11,7 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox"; 
-import { Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, Printer, ChevronLeft, ChevronRight, CheckCircle2, Calendar, Pencil, Trash2 } from "lucide-react";
+import { 
+  Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, 
+  Printer, ChevronLeft, ChevronRight, CheckCircle2, 
+  Calendar, Pencil, Trash2, Check, ChevronsUpDown 
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const SOMALIA_DISTRICTS = {
   Banaadir: ["Cabdiasiis","Boondheere","Dayniile","Dharkeenley","Hamar Jajab","Hamar Weyne","Hodan","Howlwadaag","Huriwaa","Kaaraan","Kaxda","Shangaani","Shibis","Waaberi","Wadajir","Wardhiigley","Yaaqshiid","Garasbaaley","Gubadley" ,"Darusalam" ,"gubta"],
@@ -24,6 +31,7 @@ const SOMALIA_DISTRICTS = {
   "Waqoyi Bari": ["Laascaanood","Taleex","Xudun"]
 };
 const SOMALI_STATES = Object.keys(SOMALIA_DISTRICTS);
+const DEPARTMENTS = ["Eye", "Ear", "Nose", "Throat"];
 
 export default function CustomerRegistration() {
   const [loading, setLoading] = useState(false);
@@ -79,18 +87,16 @@ export default function CustomerRegistration() {
     setFormData({ fullName: "", phone: "", address: "", state: "", age: "", gender: "", department: "", doctorId: "", doctorName: "", amount: "" });
   };
 
-  // Logic oggolaanaya multi-select checkbox
-  const handleDeptToggle = (dept) => {
-    setFormData(prev => {
-      const currentDepts = prev.department ? prev.department.split(", ") : [];
-      let newDepts;
-      if (currentDepts.includes(dept)) {
-        newDepts = currentDepts.filter(d => d !== dept);
-      } else {
-        newDepts = [...currentDepts, dept];
-      }
-      return { ...prev, department: newDepts.join(", ") };
-    });
+  // Logic oggolaanaya multi-select checkbox gudaha dropdown-ka
+  const toggleDepartment = (dept) => {
+    const currentDepts = formData.department ? formData.department.split(", ") : [];
+    let updatedDepts;
+    if (currentDepts.includes(dept)) {
+      updatedDepts = currentDepts.filter(d => d !== dept);
+    } else {
+      updatedDepts = [...currentDepts, dept];
+    }
+    setFormData({ ...formData, department: updatedDepts.join(", ") });
   };
 
   const handleRegisterNew = async (e) => {
@@ -161,8 +167,45 @@ export default function CustomerRegistration() {
   const totalPages = Math.ceil(filteredPatients.length / recordsPerPage) || 1;
   const currentRecords = filteredPatients.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
 
+  // Helper component for Multi-Select Dropdown
+  const MultiSelectDept = ({ currentDept, onToggle }) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className="w-full justify-between h-10 bg-background font-normal"
+        >
+          <span className="truncate">
+            {currentDept || "Select Departments"}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command>
+          <CommandGroup>
+            {DEPARTMENTS.map((dept) => (
+              <CommandItem
+                key={dept}
+                onSelect={() => onToggle(dept)}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Checkbox 
+                  checked={currentDept.split(", ").includes(dept)}
+                  onCheckedChange={() => onToggle(dept)}
+                />
+                {dept}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto relative">
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto relative text-slate-800">
       {success && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-full duration-300">
            <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-blue-400">
@@ -185,7 +228,7 @@ export default function CustomerRegistration() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <Input placeholder="Search patient..." className="pl-10 h-11 bg-background" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
           </div>
-          <Button onClick={() => { resetForm(); setOpen(true); }} className="bg-blue-600 hover:bg-blue-700 h-11 px-6 font-black w-full sm:w-auto">
+          <Button onClick={() => { resetForm(); setOpen(true); }} className="bg-blue-600 hover:bg-blue-700 h-11 px-6 font-black w-full sm:w-auto text-white">
             <UserPlus size={18} className="mr-2" /> NEW PATIENT
           </Button>
         </div>
@@ -232,7 +275,7 @@ export default function CustomerRegistration() {
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-blue-600 text-blue-600" onClick={() => { setSelectedPatient(p); setFormData({...p, department: p.lastDept || ""}); setEditOpen(true); }}><Pencil size={14}/></Button>
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-red-600 text-red-600" onClick={() => handleDelete(p.id)}><Trash2 size={14}/></Button>
                     <Button variant="outline" size="sm" className="h-8 px-2 border-green-600 text-green-600 text-[10px] font-bold" onClick={() => handleInvoicePrint(p, { amount: p.lastAmount || 0, department: p.lastDept || 'General', doctorName: p.doctorName || 'MD' })}><Printer size={14} className="mr-1"/> INVOICE</Button>
-                    <Button size="sm" className="bg-blue-600 h-8 px-2 text-[10px] font-bold" onClick={() => { setSelectedPatient(p); setFormData(prev => ({ ...prev, department: "", amount: "", doctorId: "", doctorName: "" })); setResendOpen(true); }}><RefreshCcw size={14} className="mr-1"/> RESEND</Button>
+                    <Button size="sm" className="bg-blue-600 h-8 px-2 text-[10px] font-bold text-white" onClick={() => { setSelectedPatient(p); setFormData(prev => ({ ...prev, department: "", amount: "", doctorId: "", doctorName: "" })); setResendOpen(true); }}><RefreshCcw size={14} className="mr-1"/> RESEND</Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -251,7 +294,7 @@ export default function CustomerRegistration() {
 
       {/* NEW PATIENT DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-white">
           <DialogHeader><DialogTitle className="text-2xl font-black text-blue-600 uppercase">New Patient</DialogTitle></DialogHeader>
           <form onSubmit={handleRegisterNew} className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -264,7 +307,7 @@ export default function CustomerRegistration() {
             </div>
             <div>
               <label className="text-[10px] font-black uppercase">Gender</label>
-              <select className="w-full p-2 border rounded-md text-sm" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })} required>
+              <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })} required>
                 <option value="">Select</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -276,14 +319,14 @@ export default function CustomerRegistration() {
             </div>
             <div>
               <label className="text-[10px] font-black uppercase">State</label>
-              <select className="w-full p-2 border rounded-md text-sm" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value, address: "" })} required>
+              <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value, address: "" })} required>
                 <option value="">Select State</option>
                 {SOMALI_STATES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div className="col-span-2">
               <label className="text-[10px] font-black uppercase">District</label>
-              <select className="w-full p-2 border rounded-md text-sm" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} required>
+              <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} required>
                 <option value="">Select District</option>
                 {SOMALIA_DISTRICTS[formData.state]?.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
@@ -291,21 +334,12 @@ export default function CustomerRegistration() {
             
             <div className="col-span-2 grid grid-cols-3 gap-3 border-t pt-4">
               <div>
-                <label className="text-[10px] font-black uppercase block mb-2 text-blue-600">Depts (Multiple)</label>
-                <div className="flex gap-4 items-center h-10 px-2 bg-blue-50/50 rounded-md border border-blue-100">
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="eye_new" checked={formData.department.includes("Eye")} onCheckedChange={() => handleDeptToggle("Eye")} />
-                    <label htmlFor="eye_new" className="text-sm font-bold cursor-pointer">Eye</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="ear_new" checked={formData.department.includes("Ear")} onCheckedChange={() => handleDeptToggle("Ear")} />
-                    <label htmlFor="ear_new" className="text-sm font-bold cursor-pointer">Ear</label>
-                  </div>
-                </div>
+                <label className="text-[10px] font-black uppercase block mb-1 text-blue-600">Departments</label>
+                <MultiSelectDept currentDept={formData.department} onToggle={toggleDepartment} />
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase">Doctor</label>
-                <select className="w-full p-2 border rounded-md text-sm" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
+                <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
                   <option value="">Select</option>
                   {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
                 </select>
@@ -315,7 +349,7 @@ export default function CustomerRegistration() {
                 <Input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} required />
               </div>
             </div>
-            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase" disabled={loading}>
+            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase text-white" disabled={loading}>
               {loading ? <Loader2 className="animate-spin" /> : "REGISTER & PRINT"}
             </Button>
           </form>
@@ -324,7 +358,7 @@ export default function CustomerRegistration() {
 
       {/* RESEND DIALOG */}
       <Dialog open={resendOpen} onOpenChange={setResendOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
+        <DialogContent className="max-w-md rounded-2xl bg-white">
           <DialogHeader><DialogTitle className="text-xl font-black text-blue-600 uppercase">Returning Visit</DialogTitle></DialogHeader>
           {selectedPatient && (
             <form onSubmit={handleResend} className="space-y-4">
@@ -334,17 +368,8 @@ export default function CustomerRegistration() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black uppercase block mb-2 text-blue-600">Depts</label>
-                  <div className="flex gap-4 items-center h-10 px-2 bg-blue-50/50 rounded-md border border-blue-100">
-                    <div className="flex items-center gap-1.5">
-                      <Checkbox id="eye_res" checked={formData.department.includes("Eye")} onCheckedChange={() => handleDeptToggle("Eye")} />
-                      <label htmlFor="eye_res" className="text-xs font-bold cursor-pointer">Eye</label>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Checkbox id="ear_res" checked={formData.department.includes("Ear")} onCheckedChange={() => handleDeptToggle("Ear")} />
-                      <label htmlFor="ear_res" className="text-xs font-bold cursor-pointer">Ear</label>
-                    </div>
-                  </div>
+                  <label className="text-[10px] font-black uppercase block mb-1 text-blue-600">Departments</label>
+                  <MultiSelectDept currentDept={formData.department} onToggle={toggleDepartment} />
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-red-600">Amount ($)</label>
@@ -353,12 +378,12 @@ export default function CustomerRegistration() {
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase">Assign Doctor</label>
-                <select className="w-full p-2 border rounded-md text-sm" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
+                <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
                   <option value="">Select Doctor</option>
                   {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
                 </select>
               </div>
-              <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-black uppercase" disabled={loading}>
+              <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-black uppercase text-white" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" /> : "Complete & Print"}
               </Button>
             </form>
@@ -368,41 +393,32 @@ export default function CustomerRegistration() {
 
       {/* EDIT DIALOG */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl bg-white">
           <DialogHeader><DialogTitle className="text-xl font-black text-blue-600 uppercase">Edit Patient</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4">
             <div className="col-span-2"><label className="text-[10px] font-black uppercase">Full Name</label><Input value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} /></div>
             <div><label className="text-[10px] font-black uppercase">Age</label><Input type="number" value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} /></div>
             <div><label className="text-[10px] font-black uppercase">Gender</label>
-              <select className="w-full p-2 border rounded-md text-sm" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
+              <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
                 <option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option>
               </select>
             </div>
             <div><label className="text-[10px] font-black uppercase">Phone</label><Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
             <div><label className="text-[10px] font-black uppercase">State</label>
-              <select className="w-full p-2 border rounded-md text-sm" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value, address: "" })}>
+              <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value, address: "" })}>
                 <option value="">Select State</option>{SOMALI_STATES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div className="col-span-2"><label className="text-[10px] font-black uppercase">District</label>
-              <select className="w-full p-2 border rounded-md text-sm" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}>
+              <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}>
                 <option value="">Select District</option>{SOMALIA_DISTRICTS[formData.state]?.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="text-[10px] font-black uppercase block mb-2 text-blue-600">Department</label>
-              <div className="flex gap-6 items-center h-10 border rounded-md px-3 bg-blue-50/50 border-blue-100">
-                <div className="flex items-center gap-2">
-                  <Checkbox id="eye_edit" checked={formData.department.includes("Eye")} onCheckedChange={() => handleDeptToggle("Eye")} />
-                  <label htmlFor="eye_edit" className="text-sm font-bold cursor-pointer">Eye</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="ear_edit" checked={formData.department.includes("Ear")} onCheckedChange={() => handleDeptToggle("Ear")} />
-                  <label htmlFor="ear_edit" className="text-sm font-bold cursor-pointer">Ear</label>
-                </div>
-              </div>
+              <label className="text-[10px] font-black uppercase block mb-1 text-blue-600">Department</label>
+              <MultiSelectDept currentDept={formData.department} onToggle={toggleDepartment} />
             </div>
-            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase">{loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}</Button>
+            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase text-white">{loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}</Button>
           </form>
         </DialogContent>
       </Dialog>
