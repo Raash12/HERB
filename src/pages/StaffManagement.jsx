@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { motion } from "framer-motion";
@@ -18,11 +18,21 @@ export default function StaffManagement({ users, branches, fetchData }) {
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUserId, setEditUserId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [uForm, setUForm] = useState({ 
+  
+  // Form-ka asalkiisa
+  const initialForm = { 
     fullName: "", email: "", password: "", role: "reception", branch: "", active: true 
-  });
+  };
+  
+  const [uForm, setUForm] = useState(initialForm);
 
   const itemsPerPage = 6;
+
+  // Function-kan wuxuu nadiifiyaa form-ka si uusan edit-kii hore ugu dhex jirin
+  const resetForm = () => {
+    setUForm(initialForm);
+    setEditUserId(null);
+  };
 
   const handleAddUser = async () => {
     if (!uForm.email || (!editUserId && !uForm.password)) return alert("Email iyo Password lama huraan waa!");
@@ -32,16 +42,14 @@ export default function StaffManagement({ users, branches, fetchData }) {
         await updateDoc(doc(db, "users", editUserId), uForm);
       } else {
         const res = await createUserWithEmailAndPassword(auth, uForm.email, uForm.password);
-        // Waxaan ku darnay createdAt si loogu kala saaro
         await setDoc(doc(db, "users", res.user.uid), { 
           ...uForm, 
           id: res.user.uid, 
-          createdAt: new Date().getTime() // Waqtiga hadda (timestamp)
+          createdAt: new Date().getTime() 
         });
       }
-      setUForm({ fullName: "", email: "", password: "", role: "reception", branch: "", active: true });
+      resetForm();
       setShowUserModal(false); 
-      setEditUserId(null); 
       fetchData();
     } catch (err) { alert(err.message); } finally { setLoading(false); }
   };
@@ -51,7 +59,7 @@ export default function StaffManagement({ users, branches, fetchData }) {
     try { await deleteDoc(doc(db, "users", id)); fetchData(); } catch (err) { alert(err.message); }
   };
 
-  // --- Halkan waa meesha laga xalliyay in kan u dambeeyay uu kor yimaado ---
+  // Sort: Kan ugu dambeeyay ayaa kor imaanaya
   const sortedUsers = [...users].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   const filteredUsers = sortedUsers.filter(u => 
@@ -77,7 +85,8 @@ export default function StaffManagement({ users, branches, fetchData }) {
               className="pl-10 w-full h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-[10px] font-bold uppercase outline-none px-4" 
             />
           </div>
-          <Button onClick={() => { setEditUserId(null); setShowUserModal(true); }} className="bg-blue-600 rounded-xl h-12 px-8 font-black uppercase text-[10px] tracking-widest">
+          {/* Markii la taabto Add New, form-ka waa la reset gareynayaa */}
+          <Button onClick={() => { resetForm(); setShowUserModal(true); }} className="bg-blue-600 rounded-xl h-12 px-8 font-black uppercase text-[10px] tracking-widest">
             Add New Staff
           </Button>
         </div>
@@ -142,7 +151,9 @@ export default function StaffManagement({ users, branches, fetchData }) {
       {showUserModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div initial={{scale: 0.9}} animate={{scale: 1}} className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] w-full max-w-md relative shadow-2xl">
-            <button onClick={() => setShowUserModal(false)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors"><X size={24} /></button>
+            {/* Markii modal-ka la xiro, form-ka waa la reset-gareynayaa */}
+            <button onClick={() => { setShowUserModal(false); resetForm(); }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors"><X size={24} /></button>
+            
             <h2 className="text-xl font-black mb-8 uppercase dark:text-white tracking-tighter">
                 {editUserId ? "Update Staff Member" : "Register Staff Member"}
             </h2>
