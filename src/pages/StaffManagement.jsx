@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { motion } from "framer-motion";
@@ -19,22 +19,27 @@ export default function StaffManagement({ users, branches, fetchData }) {
   const [editUserId, setEditUserId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uForm, setUForm] = useState({ 
-    fullName: "", email: "", password: "", role: "doctor", branch: "", active: true 
+    fullName: "", email: "", password: "", role: "reception", branch: "", active: true 
   });
 
   const itemsPerPage = 6;
 
   const handleAddUser = async () => {
-    if (!uForm.email || (!editUserId && !uForm.password)) return alert("Email iyo Password!");
+    if (!uForm.email || (!editUserId && !uForm.password)) return alert("Email iyo Password lama huraan waa!");
     try {
       setLoading(true);
       if (editUserId) {
         await updateDoc(doc(db, "users", editUserId), uForm);
       } else {
         const res = await createUserWithEmailAndPassword(auth, uForm.email, uForm.password);
-        await setDoc(doc(db, "users", res.user.uid), { ...uForm, id: res.user.uid });
+        // Waxaan ku darnay createdAt si loogu kala saaro
+        await setDoc(doc(db, "users", res.user.uid), { 
+          ...uForm, 
+          id: res.user.uid, 
+          createdAt: new Date().getTime() // Waqtiga hadda (timestamp)
+        });
       }
-      setUForm({ fullName: "", email: "", password: "", role: "doctor", branch: "", active: true });
+      setUForm({ fullName: "", email: "", password: "", role: "reception", branch: "", active: true });
       setShowUserModal(false); 
       setEditUserId(null); 
       fetchData();
@@ -46,9 +51,13 @@ export default function StaffManagement({ users, branches, fetchData }) {
     try { await deleteDoc(doc(db, "users", id)); fetchData(); } catch (err) { alert(err.message); }
   };
 
-  const filteredUsers = users.filter(u => 
+  // --- Halkan waa meesha laga xalliyay in kan u dambeeyay uu kor yimaado ---
+  const sortedUsers = [...users].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const filteredUsers = sortedUsers.filter(u => 
     u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.branch?.toLowerCase().includes(searchTerm.toLowerCase())
+    u.branch?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const paginatedData = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -94,7 +103,7 @@ export default function StaffManagement({ users, branches, fetchData }) {
                     </div>
                     <div>
                       <p className="font-black uppercase text-sm dark:text-white">{user.fullName}</p>
-                      <p className="text-[9px] text-slate-400 font-bold">{user.role}</p>
+                      <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">{user.role}</Badge>
                     </div>
                   </div>
                 </TableCell>
@@ -121,33 +130,15 @@ export default function StaffManagement({ users, branches, fetchData }) {
           </TableBody>
         </Table>
 
-        {/* PAGINATION CONTROLS */}
         <div className="flex items-center justify-between p-8 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] font-black uppercase text-slate-400">
-                Page {currentPage} of {totalPages}
-            </p>
+            <p className="text-[10px] font-black uppercase text-slate-400">Page {currentPage} of {totalPages}</p>
             <div className="flex gap-2">
-                <Button 
-                    variant="ghost" 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => prev - 1)}
-                    className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 shadow-sm disabled:opacity-30"
-                >
-                    <ChevronLeft size={16} />
-                </Button>
-                <Button 
-                    variant="ghost" 
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                    className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 shadow-sm disabled:opacity-30"
-                >
-                    <ChevronRight size={16} />
-                </Button>
+                <Button variant="ghost" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 shadow-sm disabled:opacity-30"><ChevronLeft size={16} /></Button>
+                <Button variant="ghost" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 shadow-sm disabled:opacity-30"><ChevronRight size={16} /></Button>
             </div>
         </div>
       </Card>
 
-      {/* MODAL SECTION - SIDII HORE */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div initial={{scale: 0.9}} animate={{scale: 1}} className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] w-full max-w-md relative shadow-2xl">
@@ -161,6 +152,15 @@ export default function StaffManagement({ users, branches, fetchData }) {
               {!editUserId && <Input type="password" placeholder="PASSWORD" value={uForm.password} onChange={e => setUForm({ ...uForm, password: e.target.value })} className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none font-bold uppercase text-[10px] px-6" />}
               
               <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Shaqada (Role)</label>
+                <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none" value={uForm.role} onChange={e => setUForm({ ...uForm, role: e.target.value })}>
+                    <option value="reception">RECEPTION</option>
+                    <option value="doctor">DOCTOR</option>
+                    <option value="admin">ADMIN</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Assigned Branch</label>
                 <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none" value={uForm.branch} onChange={e => setUForm({ ...uForm, branch: e.target.value })}>
                     <option value="">SELECT BRANCH</option>
@@ -171,8 +171,8 @@ export default function StaffManagement({ users, branches, fetchData }) {
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Employment Status</label>
                 <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none" value={uForm.active} onChange={e => setUForm({ ...uForm, active: e.target.value === "true" })}>
-                    <option value="true">ACTIVE (Wuu Shaqaynayaa)</option>
-                    <option value="false">INACTIVE (Laga Joojiyay)</option>
+                    <option value="true">ACTIVE</option>
+                    <option value="false">INACTIVE</option>
                 </select>
               </div>
 
