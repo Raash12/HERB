@@ -3,6 +3,7 @@ import { db } from "../../firebase";
 import { 
   collection, query, onSnapshot, orderBy
 } from "firebase/firestore";
+import * as XLSX from "xlsx"; // 👈 Waxaan soo dhex-gelisay maktabadda Excel Export-ka
 
 // UI Components
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 // Icons
 import { 
   Loader2, Search, MapPin, 
-  Calendar, ChevronLeft, ChevronRight, Building2, Users, Filter, Activity
+  Calendar, ChevronLeft, ChevronRight, Building2, Users, Filter, Activity, Download
 } from "lucide-react";
 
 export default function AdminPatients() {
@@ -52,7 +53,37 @@ export default function AdminPatients() {
     return matchesBranch && matchesSearch;
   });
 
-  // ✅ 3. PAGINATION LOGIC
+  // ✅ 3. EXCEL EXPORT LOGIC (Dynamic Filter-Based)
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      alert("Ma helin wax xog ah oo la soo dejiyo!");
+      return;
+    }
+
+    // Habaynta safafka iyo tiirarka (Columns) Excel-ka loo dhoofinayo
+    const excelRows = filteredData.map((p) => ({
+      "REG. DATE": p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('en-GB') : "N/A",
+      "PATIENT NAME": p.fullName || "N/A",
+      "BRANCH / LOCATION": p.branch || p.branchName || "Other",
+      "CONTACT PHONE": p.phone || "No Phone",
+      "STATUS": "Active"
+    }));
+
+    // Diyaarinta Shidka Excel-ka
+    const worksheet = XLSX.utils.json_to_sheet(excelRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Patients List");
+
+    // Magaca faylka oo la raaciyey magaca Branch-ka la filter-gareeyey
+    const fileName = selectedBranch === "all" 
+      ? "All_Branches_Patients_Report.xlsx" 
+      : `${selectedBranch.replace(/\s+/g, '_')}_Patients_Report.xlsx`;
+
+    // Soo dejinta faylka dhabta ah
+    XLSX.writeFile(workbook, fileName);
+  };
+
+  // ✅ 4. PAGINATION LOGIC
   const totalFiltered = filteredData.length;
   const totalPages = Math.ceil(totalFiltered / pageSize);
   const startIndex = (page - 1) * pageSize;
@@ -98,7 +129,7 @@ export default function AdminPatients() {
         
         <div className="flex flex-col md:flex-row items-center gap-3 w-full lg:w-auto">
           
-          {/* ✅ BRANCH FILTER (NEW STYLE) */}
+          {/* ✅ BRANCH FILTER */}
           <div className="relative w-full md:w-64 group">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
             <select 
@@ -114,7 +145,7 @@ export default function AdminPatients() {
           </div>
 
           {/* SEARCH INPUT */}
-          <div className="relative w-full md:w-80">
+          <div className="relative w-full md:w-72">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
               placeholder="Search by name or phone..." 
@@ -122,6 +153,15 @@ export default function AdminPatients() {
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
             />
           </div>
+
+          {/* ✅ BADHANKA EXCEL EXPORT (Dhex-galka sifeeyaha) */}
+          <Button
+            onClick={handleExportExcel}
+            className="w-full md:w-auto h-12 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 transition-all border-none"
+          >
+            <Download size={16} />
+            Export Excel
+          </Button>
         </div>
       </div>
 
