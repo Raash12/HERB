@@ -15,7 +15,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState(""); 
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // Isha state-keeda sxb
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function Login() {
       setMessage("Fadlan buuxi meelaha banaan");
       return;
     }
-    loading(true);
+    setLoading(true); // <<--- Halkan ayaan kuugu saxay sxb (waxay ahayd loading(true))
     setIsError(false);
     try {
       const userData = await findUserByEmailOrName(identifier);
@@ -49,7 +49,7 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }} 
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[380px]" // Size-ka halkan ayaan ku yareeyay sxb
+        className="w-full max-w-[380px]"
       >
         <Card className="shadow-2xl rounded-[2.5rem] border-none bg-white dark:bg-slate-900 overflow-hidden">
           <CardContent className="p-8 space-y-6">
@@ -100,7 +100,7 @@ export default function Login() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
                 <Input
                   placeholder="PASSWORD"
-                  type={showPassword ? "text" : "password"} // Halkan ayuu isbedelku kaga dhacay sxb
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-14 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
