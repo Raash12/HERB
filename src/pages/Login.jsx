@@ -20,13 +20,14 @@ export default function Login() {
   const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault(); // Halkan ayaan ku darnay si uusan foomku u refresh-gareyn page-ka
     if (!identifier || !password) {
       setIsError(true);
       setMessage("Fadlan buuxi meelaha banaan");
       return;
     }
-    setLoading(true); // <<--- Halkan ayaan kuugu saxay sxb (waxay ahayd loading(true))
+    setLoading(true);
     setIsError(false);
     try {
       const userData = await findUserByEmailOrName(identifier);
@@ -84,45 +85,48 @@ export default function Login() {
               </div>
             </div>
 
-            {/* INPUTS */}
-            <div className="space-y-3">
-              <div className="group relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
-                <Input
-                  placeholder="EMAIL AMA MAGACA"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="h-14 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
-                />
+            {/* FORM WRAPPER */}
+            <form onSubmit={handleLogin} className="space-y-6">
+              {/* INPUTS */}
+              <div className="space-y-3">
+                <div className="group relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
+                  <Input
+                    placeholder="EMAIL AMA MAGACA"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    className="h-14 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
+                  />
+                </div>
+
+                <div className="group relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
+                  <Input
+                    placeholder="PASSWORD"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-14 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
-              <div className="group relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
-                <Input
-                  placeholder="PASSWORD"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-14 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* BUTTON */}
-            <Button
-              disabled={loading}
-              className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
-              onClick={handleLogin}
-            >
-              {loading ? "HUBINTA..." : "Login"}
-            </Button>
+              {/* BUTTON */}
+              <Button
+                type="submit" // Wuxuu isku bedelay submit si Enter-ta keyboard-ka u shaqeyso
+                disabled={loading}
+                className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
+              >
+                {loading ? "HUBINTA..." : "Login"}
+              </Button>
+            </form>
 
             {/* MESSAGE */}
             {message && (
