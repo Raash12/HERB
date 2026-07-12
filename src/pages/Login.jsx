@@ -9,12 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Lock, User, Sparkles, ShieldCheck } from "lucide-react";
+import { Lock, User, Sparkles, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState(""); 
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // Isha state-keeda sxb
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export default function Login() {
       setMessage("Fadlan buuxi meelaha banaan");
       return;
     }
-    setLoading(true);
+    loading(true);
     setIsError(false);
     try {
       const userData = await findUserByEmailOrName(identifier);
@@ -99,11 +100,18 @@ export default function Login() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
                 <Input
                   placeholder="PASSWORD"
-                  type="password"
+                  type={showPassword ? "text" : "password"} // Halkan ayuu isbedelku kaga dhacay sxb
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-14 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
+                  className="h-14 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium text-[13px] placeholder:text-[9px] placeholder:font-black focus-visible:ring-2 focus-visible:ring-blue-600 shadow-inner"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
