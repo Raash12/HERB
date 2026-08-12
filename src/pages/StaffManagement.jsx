@@ -4,7 +4,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { motion } from "framer-motion";
 import { 
-  Search, Edit3, Trash2, X, UserCheck, ChevronLeft, ChevronRight 
+  Search, Edit3, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, Check 
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
@@ -12,64 +12,113 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-export default function StaffManagement({ users, branches, fetchData }) {
+export default function StaffManagement({ users = [], branches = [], fetchData }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUserId, setEditUserId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   
-  // Form-ka asalkiisa
   const initialForm = { 
-    fullName: "", email: "", password: "", role: "reception", branch: "", active: true 
+    fullName: "", email: "", password: "", role: "reception", branch: [], active: true 
   };
   
   const [uForm, setUForm] = useState(initialForm);
-
   const itemsPerPage = 6;
 
-  // Function-kan wuxuu nadiifiyaa form-ka si uusan edit-kii hore ugu dhex jirin
   const resetForm = () => {
     setUForm(initialForm);
     setEditUserId(null);
+    setIsBranchDropdownOpen(false);
+  };
+
+  const handleBranchChange = (branchName) => {
+    const currentBranches = Array.isArray(uForm.branch) ? uForm.branch : [];
+    if (currentBranches.includes(branchName)) {
+      setUForm({
+        ...uForm,
+        branch: currentBranches.filter((b) => b !== branchName)
+      });
+    } else {
+      setUForm({
+        ...uForm,
+        branch: [...currentBranches, branchName]
+      });
+    }
   };
 
   const handleAddUser = async () => {
-    if (!uForm.email || (!editUserId && !uForm.password)) return alert("Email iyo Password lama huraan waa!");
+    if (!uForm.email || (!editUserId && !uForm.password)) {
+      return alert("Email iyo Password lama huraan waa!");
+    }
+    
     try {
       setLoading(true);
+
+      // Clean up data before saving
+      const userData = {
+        ...uForm,
+        fullName: uForm.fullName.trim(),
+        email: uForm.email.trim(),
+        role: uForm.role.toLowerCase(), // Hubi in role-ku yahay lowercase mar walba
+        branch: Array.isArray(uForm.branch) ? uForm.branch : []
+      };
+
       if (editUserId) {
-        await updateDoc(doc(db, "users", editUserId), uForm);
+        await updateDoc(doc(db, "users", editUserId), userData);
       } else {
         const res = await createUserWithEmailAndPassword(auth, uForm.email, uForm.password);
         await setDoc(doc(db, "users", res.user.uid), { 
-          ...uForm, 
+          ...userData, 
           id: res.user.uid, 
-          createdAt: new Date().getTime() 
+          createdAt: Date.now()
         });
       }
+
       resetForm();
       setShowUserModal(false); 
-      fetchData();
-    } catch (err) { alert(err.message); } finally { setLoading(false); }
+      if (fetchData) fetchData();
+    } catch (err) { 
+      alert(err.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Ma hubtaa inaad tirtirto shaqaalahan?")) return;
-    try { await deleteDoc(doc(db, "users", id)); fetchData(); } catch (err) { alert(err.message); }
+    try { 
+      await deleteDoc(doc(db, "users", id)); 
+      if (fetchData) fetchData(); 
+    } catch (err) { 
+      alert(err.message); 
+    }
   };
 
-  // Sort: Kan ugu dambeeyay ayaa kor imaanaya
   const sortedUsers = [...users].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  const filteredUsers = sortedUsers.filter(u => 
-    u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.branch?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.role?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = sortedUsers.filter(u => {
+    const branchString = Array.isArray(u.branch) ? u.branch.join(" ") : (u.branch || "");
+    return (
+      u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      branchString.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.role?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const paginatedData = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+
+  const getSelectedBranchesLabel = () => {
+    if (!Array.isArray(uForm.branch) || uForm.branch.length === 0) {
+      return "SELECT BRANCHES";
+    }
+    if (uForm.branch.length === 1) {
+      return uForm.branch[0];
+    }
+    return `${uForm.branch.length} BRANCHES SELECTED`;
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -85,7 +134,6 @@ export default function StaffManagement({ users, branches, fetchData }) {
               className="pl-10 w-full h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-[10px] font-bold uppercase outline-none px-4" 
             />
           </div>
-          {/* Markii la taabto Add New, form-ka waa la reset gareynayaa */}
           <Button onClick={() => { resetForm(); setShowUserModal(true); }} className="bg-blue-600 rounded-xl h-12 px-8 font-black uppercase text-[10px] tracking-widest">
             Add New Staff
           </Button>
@@ -117,9 +165,19 @@ export default function StaffManagement({ users, branches, fetchData }) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className="bg-indigo-500/10 text-indigo-500 border-none px-4 py-1 rounded-full text-[9px] font-black uppercase">
-                    {user.branch || "Global"}
-                  </Badge>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.isArray(user.branch) && user.branch.length > 0 ? (
+                      user.branch.map((b, i) => (
+                        <Badge key={i} className="bg-indigo-500/10 text-indigo-500 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase">
+                          {b}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge className="bg-indigo-500/10 text-indigo-500 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase">
+                        {typeof user.branch === "string" && user.branch !== "" ? user.branch : "Global"}
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge className={`${user.active ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"} border-none px-4 py-1 rounded-full text-[9px] font-black uppercase`}>
@@ -129,7 +187,11 @@ export default function StaffManagement({ users, branches, fetchData }) {
                 <TableCell className="text-right pr-10 space-x-2">
                   <Button variant="ghost" className="h-10 w-10 rounded-xl text-blue-600" onClick={() => {
                     setEditUserId(user.id);
-                    setUForm({ ...user, password: "" });
+                    setUForm({ 
+                      ...user, 
+                      password: "",
+                      branch: Array.isArray(user.branch) ? user.branch : (user.branch ? [user.branch] : [])
+                    });
                     setShowUserModal(true);
                   }}><Edit3 size={16} /></Button>
                   <Button variant="ghost" className="h-10 w-10 rounded-xl text-red-500" onClick={() => handleDelete(user.id)}><Trash2 size={16} /></Button>
@@ -151,7 +213,6 @@ export default function StaffManagement({ users, branches, fetchData }) {
       {showUserModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div initial={{scale: 0.9}} animate={{scale: 1}} className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] w-full max-w-md relative shadow-2xl">
-            {/* Markii modal-ka la xiro, form-ka waa la reset-gareynayaa */}
             <button onClick={() => { setShowUserModal(false); resetForm(); }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors"><X size={24} /></button>
             
             <h2 className="text-xl font-black mb-8 uppercase dark:text-white tracking-tighter">
@@ -164,24 +225,60 @@ export default function StaffManagement({ users, branches, fetchData }) {
               
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Shaqada (Role)</label>
-                <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none" value={uForm.role} onChange={e => setUForm({ ...uForm, role: e.target.value })}>
+                <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none dark:text-white" value={uForm.role} onChange={e => setUForm({ ...uForm, role: e.target.value })}>
                     <option value="reception">RECEPTION</option>
                     <option value="doctor">DOCTOR</option>
                     <option value="admin">ADMIN</option>
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Assigned Branch</label>
-                <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none" value={uForm.branch} onChange={e => setUForm({ ...uForm, branch: e.target.value })}>
-                    <option value="">SELECT BRANCH</option>
-                    {branches.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
-                </select>
+              <div className="space-y-1 relative">
+                <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Assigned Branches</label>
+                
+                <button
+                  type="button"
+                  onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
+                  className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none dark:text-white flex items-center justify-between border-none"
+                >
+                  <span className={uForm.branch?.length ? "text-slate-900 dark:text-white" : "text-slate-400"}>
+                    {getSelectedBranchesLabel()}
+                  </span>
+                  <ChevronDown size={16} className={`text-slate-400 transition-transform ${isBranchDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isBranchDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsBranchDropdownOpen(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-2 shadow-2xl max-h-48 overflow-y-auto space-y-1">
+                      {branches.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 font-bold uppercase p-3">No branches available</p>
+                      ) : (
+                        branches.map((b) => {
+                          const isChecked = Array.isArray(uForm.branch) && uForm.branch.includes(b.name);
+                          return (
+                            <div
+                              key={b.id}
+                              onClick={() => handleBranchChange(b.name)}
+                              className="flex items-center justify-between p-3 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                            >
+                              <span className="text-[10px] font-black uppercase dark:text-slate-200">
+                                {b.name}
+                              </span>
+                              <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-colors ${isChecked ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 dark:border-slate-600"}`}>
+                                {isChecked && <Check size={12} strokeWidth={3} />}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 ml-4 uppercase">Employment Status</label>
-                <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none" value={uForm.active} onChange={e => setUForm({ ...uForm, active: e.target.value === "true" })}>
+                <select className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 text-[10px] font-black uppercase outline-none dark:text-white" value={uForm.active} onChange={e => setUForm({ ...uForm, active: e.target.value === "true" })}>
                     <option value="true">ACTIVE</option>
                     <option value="false">INACTIVE</option>
                 </select>

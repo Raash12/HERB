@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../../firebase"; 
-import { collection, getDocs, query, where, addDoc, doc, getDoc, onSnapshot, orderBy, serverTimestamp, updateDoc, increment, deleteDoc } from "firebase/firestore";
+import { 
+  collection, getDocs, query, where, addDoc, doc, getDoc, 
+  onSnapshot, orderBy, serverTimestamp, updateDoc, increment, deleteDoc 
+} from "firebase/firestore";
 import { handleInvoicePrint } from "../../utils/printHandlers";
 
 // UI Components
@@ -14,11 +17,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, 
   Printer, ChevronLeft, ChevronRight, CheckCircle2, 
-  Calendar, Pencil, Trash2, Check, ChevronsUpDown 
+  Calendar, Pencil, Trash2, ChevronsUpDown 
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 
 const SOMALIA_DISTRICTS = {
   Banaadir: ["Cabdiasiis","Boondheere","Dayniile","Dharkeenley","Hamar Jajab","Hamar Weyne","Hodan","Howlwadaag","Huriwaa","Kaaraan","Kaxda","Shangaani","Shibis","Waaberi","Wadajir","Wardhiigley","Yaaqshiid","Garasbaaley","Gubadley" ,"Darusalam" ,"gubta"],
@@ -52,27 +54,83 @@ export default function CustomerRegistration() {
     department: "", doctorId: "", doctorName: "", amount: ""
   });
 
+  // =========================================================================
+  // FIXED FETCH DOCTORS: Client-side filtering ensures doctors with 2+ branches 
+  // appear in both branches regardless of Array or String formatting in DB
+  // =========================================================================
   useEffect(() => {
     const fetchContext = async () => {
       const currentUser = auth.currentUser;
       if (!currentUser) return;
-      const userSnap = await getDoc(doc(db, "users", currentUser.uid));
-      if (userSnap.exists()) {
-        const branchName = userSnap.data().branch;
-        setMyBranch(branchName);
-        const qDoc = query(collection(db, "users"), where("role", "==", "doctor"), where("branch", "==", branchName));
-        const docSnap = await getDocs(qDoc);
-        setDoctors(docSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      try {
+        // 1. Soo hel branch-ka Reception-ka / Admin-ka login-ka ah
+        const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+        
+        if (userSnap.exists()) {
+          const userBranchData = userSnap.data().branch;
+          
+          // Dhulalka branch-ka isticmaalaha hadda jooga
+          let currentBranchName = "";
+          if (Array.isArray(userBranchData) && userBranchData.length > 0) {
+            currentBranchName = userBranchData[0];
+          } else if (typeof userBranchData === "string") {
+            currentBranchName = userBranchData;
+          }
+
+          setMyBranch(currentBranchName);
+          if (!currentBranchName) return;
+
+          // 2. Soo jiid Dhammaan Dhaqaatiirta (Role == "doctor")
+          const qDoctors = query(
+            collection(db, "users"), 
+            where("role", "==", "doctor")
+          );
+
+          const querySnapshot = await getDocs(qDoctors);
+
+          // 3. Client-Side Filter: Hubi in Dhaqtarku leeyahay Branch-kan (Array ama String)
+          const matchedDoctors = querySnapshot.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(docData => {
+              if (!docData.branch) return false;
+
+              // Yoo tahay Array (sida ku jirta StaffManagement: ["Mogadishu", "Hargeisa"])
+              if (Array.isArray(docData.branch)) {
+                return docData.branch.includes(currentBranchName);
+              }
+
+              // Yoo tahay String (e.g. "Mogadishu")
+              if (typeof docData.branch === "string") {
+                return docData.branch.toLowerCase().includes(currentBranchName.toLowerCase());
+              }
+
+              return false;
+            });
+
+          setDoctors(matchedDoctors);
+        }
+      } catch (error) {
+        console.error("Error fetching context/doctors:", error);
       }
     };
+
     fetchContext();
   }, []);
 
+  // Real-time listener for Patients belonging to current branch
   useEffect(() => {
     if (!myBranch) return;
-    const q = query(collection(db, "patients"), where("branch", "==", myBranch), orderBy("createdAt", "desc"));
+    const q = query(
+      collection(db, "patients"), 
+      where("branch", "==", myBranch), 
+      orderBy("createdAt", "desc")
+    );
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-      const patientList = snapshot.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }));
+      const patientList = snapshot.docs.map(d => ({ 
+        id: d.id, 
+        ...d.data({ serverTimestamps: 'estimate' }) 
+      }));
       setPatients(patientList);
     });
     return () => unsubscribe();
@@ -84,10 +142,12 @@ export default function CustomerRegistration() {
   };
 
   const resetForm = () => {
-    setFormData({ fullName: "", phone: "", address: "", state: "", age: "", gender: "", department: "", doctorId: "", doctorName: "", amount: "" });
+    setFormData({ 
+      fullName: "", phone: "", address: "", state: "", age: "", gender: "", 
+      department: "", doctorId: "", doctorName: "", amount: "" 
+    });
   };
 
-  // Logic oggolaanaya multi-select checkbox gudaha dropdown-ka
   const toggleDepartment = (dept) => {
     const currentDepts = formData.department ? formData.department.split(", ") : [];
     let updatedDepts;
@@ -104,19 +164,45 @@ export default function CustomerRegistration() {
     setLoading(true);
     try {
       const pRef = await addDoc(collection(db, "patients"), {
-        fullName: formData.fullName, phone: formData.phone, address: formData.address, state: formData.state,
-        age: formData.age, gender: formData.gender, branch: myBranch, visitCount: 1, 
-        createdAt: serverTimestamp(), lastAmount: formData.amount, lastDept: formData.department, doctorName: formData.doctorName
+        fullName: formData.fullName, 
+        phone: formData.phone, 
+        address: formData.address, 
+        state: formData.state,
+        age: formData.age, 
+        gender: formData.gender, 
+        branch: myBranch, 
+        visitCount: 1, 
+        createdAt: serverTimestamp(), 
+        lastAmount: formData.amount, 
+        lastDept: formData.department, 
+        doctorName: formData.doctorName
       });
+
       const vData = {
-        patientId: pRef.id, patientName: formData.fullName, visitNumber: 1, age: formData.age, gender: formData.gender,
-        doctorId: formData.doctorId, doctorName: formData.doctorName, department: formData.department,
-        amount: formData.amount, branch: myBranch, status: "pending", createdAt: serverTimestamp(),
+        patientId: pRef.id, 
+        patientName: formData.fullName, 
+        visitNumber: 1, 
+        age: formData.age, 
+        gender: formData.gender,
+        doctorId: formData.doctorId, 
+        doctorName: formData.doctorName, 
+        department: formData.department,
+        amount: formData.amount, 
+        branch: myBranch, 
+        status: "pending", 
+        createdAt: serverTimestamp(),
       };
+
       await addDoc(collection(db, "visits"), vData);
       handleInvoicePrint({ ...formData, id: pRef.id }, vData); 
-      setOpen(false); resetForm(); showSuccessNotification();
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      setOpen(false); 
+      resetForm(); 
+      showSuccessNotification();
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleResend = async (e) => {
@@ -124,19 +210,37 @@ export default function CustomerRegistration() {
     setLoading(true);
     try {
       await updateDoc(doc(db, "patients", selectedPatient.id), {
-        visitCount: increment(1), lastAmount: formData.amount, lastDept: formData.department, doctorName: formData.doctorName 
+        visitCount: increment(1), 
+        lastAmount: formData.amount, 
+        lastDept: formData.department, 
+        doctorName: formData.doctorName 
       });
+
       const vData = {
-        patientId: selectedPatient.id, patientName: selectedPatient.fullName,
-        visitNumber: (selectedPatient.visitCount || 1) + 1, age: selectedPatient.age,
-        gender: selectedPatient.gender, doctorId: formData.doctorId, doctorName: formData.doctorName,
-        department: formData.department, amount: formData.amount, branch: myBranch, 
-        status: "pending", createdAt: serverTimestamp(),
+        patientId: selectedPatient.id, 
+        patientName: selectedPatient.fullName,
+        visitNumber: (selectedPatient.visitCount || 1) + 1, 
+        age: selectedPatient.age,
+        gender: selectedPatient.gender, 
+        doctorId: formData.doctorId, 
+        doctorName: formData.doctorName,
+        department: formData.department, 
+        amount: formData.amount, 
+        branch: myBranch, 
+        status: "pending", 
+        createdAt: serverTimestamp(),
       };
+
       await addDoc(collection(db, "visits"), vData);
       handleInvoicePrint(selectedPatient, vData); 
-      setResendOpen(false); resetForm(); showSuccessNotification();
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      setResendOpen(false); 
+      resetForm(); 
+      showSuccessNotification();
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleEdit = async (e) => {
@@ -144,12 +248,22 @@ export default function CustomerRegistration() {
     setLoading(true);
     try {
       await updateDoc(doc(db, "patients", selectedPatient.id), {
-        fullName: formData.fullName, phone: formData.phone, address: formData.address,
-        state: formData.state, age: formData.age, gender: formData.gender,
+        fullName: formData.fullName, 
+        phone: formData.phone, 
+        address: formData.address,
+        state: formData.state, 
+        age: formData.age, 
+        gender: formData.gender,
         lastDept: formData.department 
       });
-      setEditOpen(false); resetForm(); showSuccessNotification();
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      setEditOpen(false); 
+      resetForm(); 
+      showSuccessNotification();
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleDelete = async (id) => {
@@ -157,7 +271,9 @@ export default function CustomerRegistration() {
       try {
         await deleteDoc(doc(db, "patients", id));
         showSuccessNotification();
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err); 
+      }
     }
   };
 
@@ -167,7 +283,6 @@ export default function CustomerRegistration() {
   const totalPages = Math.ceil(filteredPatients.length / recordsPerPage) || 1;
   const currentRecords = filteredPatients.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
 
-  // Helper component for Multi-Select Dropdown
   const MultiSelectDept = ({ currentDept, onToggle }) => (
     <Popover>
       <PopoverTrigger asChild>
@@ -192,7 +307,7 @@ export default function CustomerRegistration() {
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Checkbox 
-                  checked={currentDept.split(", ").includes(dept)}
+                  checked={currentDept ? currentDept.split(", ").includes(dept) : false}
                   onCheckedChange={() => onToggle(dept)}
                 />
                 {dept}
@@ -340,7 +455,7 @@ export default function CustomerRegistration() {
               <div>
                 <label className="text-[10px] font-black uppercase">Doctor</label>
                 <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
-                  <option value="">Select</option>
+                  <option value="">Select Doctor</option>
                   {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
                 </select>
               </div>
@@ -418,7 +533,9 @@ export default function CustomerRegistration() {
               <label className="text-[10px] font-black uppercase block mb-1 text-blue-600">Department</label>
               <MultiSelectDept currentDept={formData.department} onToggle={toggleDepartment} />
             </div>
-            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase text-white">{loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}</Button>
+            <Button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-700 h-12 font-black uppercase text-white" disabled={loading}>
+              {loading ? <Loader2 className="animate-spin" /> : "UPDATE PATIENT"}
+            </Button>
           </form>
         </DialogContent>
       </Dialog>

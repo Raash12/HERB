@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Pill, Loader2, Trash2, ClipboardList, Stethoscope, MessageSquare } from "lucide-react";
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function MedicalPrescription({ activeVisit, onClose, existingPrescription = null }) {
   const [receptions, setReceptions] = useState([]);
@@ -18,7 +18,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
   
   const [complain, setComplain] = useState(existingPrescription?.complain || "");
   const [diagnosis, setDiagnosis] = useState(existingPrescription?.diagnosis || "");
-  const [remarks, setRemarks] = useState(existingPrescription?.remarks || ""); // Remarks state added
+  const [remarks, setRemarks] = useState(existingPrescription?.remarks || "");
   const [inventory, setInventory] = useState([]);
   const [prescribedItems, setPrescribedItems] = useState(
     existingPrescription?.items || [{ medicineId: "", medicineName: "", quantity: 1, dosage: "" }]
@@ -29,30 +29,71 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
   useEffect(() => {
     if (!activeVisit) return;
 
+    let unsubscribeInventory = () => {};
+
     const fetchData = async () => {
       try {
-        const recQ = query(collection(db, "users"), where("role", "==", "reception"), where("branch", "==", activeVisit.branch));
+        // 1. Fetch reception users
+        const recQ = query(collection(db, "users"), where("role", "==", "reception"));
         const recSnap = await getDocs(recQ);
-        setReceptions(recSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const allReceptions = recSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const invQ = query(collection(db, "branch_medicines"), where("branchId", "==", activeVisit.branch));
-        const unsubscribe = onSnapshot(invQ, (snap) => {
-          setInventory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-          setFetching(false);
+        // 2. Filter receptions matching visit branch
+        const visitBranch = (activeVisit.branch || activeVisit.branchId || "")?.toString().trim().toLowerCase();
+
+        const branchReceptions = allReceptions.filter(r => {
+          if (!visitBranch) return true;
+          
+          const userBranch = (r.branch || r.branchId || "")?.toString().trim().toLowerCase();
+          
+          if (Array.isArray(r.branches)) {
+            return r.branches.some(b => b?.toString().trim().toLowerCase() === visitBranch);
+          }
+          
+          return userBranch === visitBranch;
         });
 
-        return () => unsubscribe();
+        setReceptions(branchReceptions.length > 0 ? branchReceptions : allReceptions);
+
+        // 3. Fetch inventory for branch
+        const targetBranch = activeVisit.branchId || activeVisit.branch || "";
+        console.log("🔍 Fetching inventory for Branch:", targetBranch);
+
+        if (targetBranch) {
+          const invQ = query(
+            collection(db, "branch_medicines"), 
+            where("branchId", "==", targetBranch)
+          );
+
+          unsubscribeInventory = onSnapshot(invQ, (snap) => {
+            setInventory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setFetching(false);
+          }, (err) => {
+            console.error("🔥 Inventory fetch error:", err);
+            setFetching(false);
+          });
+        } else {
+          setFetching(false);
+        }
+
       } catch (err) {
+        console.error("🔥 Fetch error:", err);
         setFetching(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      unsubscribeInventory();
+    };
   }, [activeVisit]);
 
   const handleSend = async () => {
     if (!selectedReception) return alert("Fadlan dooro Reception-ka!");
     if (prescribedItems.some(i => !i.medicineId)) return alert("Fadlan dooro dawada!");
+
+    const extractedBranchId = activeVisit.branchId || activeVisit.branch || "N/A";
 
     setLoading(true);
     try {
@@ -60,32 +101,44 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         patientId: activeVisit.patientId,
         visitId: activeVisit.id,
         patientName: activeVisit.patientName,
-        doctorId: auth.currentUser.uid,
+        doctorId: auth.currentUser?.uid || "unknown_doctor",
         doctorName: activeVisit.doctorName || "Doctor",
-        branch: activeVisit.branch,
+        branchId: String(extractedBranchId),
+        doctorBranchId: String(extractedBranchId),
+        branch: extractedBranchId,
         sendTo: selectedReception,
         complain,
         diagnosis,
-        remarks, // Remarks added to payload
-        items: prescribedItems,
+        remarks,
+        items: prescribedItems.map(item => ({
+          ...item,
+          quantity: parseInt(item.quantity, 10) || 1
+        })),
         status: "pending",
         category: "medical",
         updatedAt: serverTimestamp(),
       };
 
+      console.log("🚀 SENDING PRESCRIPTION PAYLOAD TO FIRESTORE:", payload);
+
       if (isEdit) {
         await updateDoc(doc(db, "medical_prescriptions", existingPrescription.id), payload);
+        console.log("✅ Prescription updated successfully!");
       } else {
         payload.createdAt = serverTimestamp();
-        await addDoc(collection(db, "medical_prescriptions"), payload);
+        const docRef = await addDoc(collection(db, "medical_prescriptions"), payload);
+        console.log("✅ New Prescription created with ID:", docRef.id);
+        
         await updateDoc(doc(db, "visits", activeVisit.id), { medsSent: true, status: "processing" });
       }
 
       onClose();
     } catch (err) {
-      alert("Cillad ayaa dhacday!");
+      console.error("🔥 Error saving prescription:", err);
+      alert("Cillad ayaa dhacday marka prescription-ka la kaydinayay!");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (fetching) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-blue-600" size={30} /></div>;
@@ -97,9 +150,11 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           <div className="bg-white/20 p-2 rounded-xl"><Pill size={20} /></div>
           <div>
             <DialogTitle className="text-sm font-black uppercase tracking-tight">
-                {isEdit ? "Update Medical Prescription" : "Medical Portal"}
+              {isEdit ? "Update Medical Prescription" : "Medical Portal"}
             </DialogTitle>
-            <p className="text-[9px] text-blue-100 font-bold uppercase">{activeVisit?.patientName}</p>
+            <DialogDescription className="text-[9px] text-blue-100 font-bold uppercase">
+              {activeVisit?.patientName} ({activeVisit?.branch})
+            </DialogDescription>
           </div>
         </div>
       </DialogHeader>
@@ -108,12 +163,16 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
           <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Send To Reception</label>
           <select 
-            className="w-full h-8 bg-transparent border-none text-[11px] font-bold outline-none" 
+            className="w-full h-8 bg-transparent border-none text-[11px] font-bold outline-none cursor-pointer" 
             value={selectedReception} 
             onChange={(e) => setSelectedReception(e.target.value)}
           >
-            <option value="">Select...</option>
-            {receptions.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+            <option value="">Select Receptionist...</option>
+            {receptions.map(r => (
+              <option key={r.id} value={r.id}>
+                {r.fullName || r.name || r.email} {r.branch ? `(${r.branch})` : ''}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -128,7 +187,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           </div>
         </div>
 
-        {/* Remarks Section Added */}
         <div className="space-y-1">
           <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><MessageSquare size={10}/> Remarks / Notes</label>
           <Textarea 
@@ -159,7 +217,18 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
                 </select>
               </div>
               <div className="col-span-2">
-                <Input type="number" className="h-8 rounded-lg text-center font-bold text-[10px] border-slate-200" placeholder="Qty" value={item.quantity} onChange={(e) => { const newItems = [...prescribedItems]; newItems[idx].quantity = e.target.value; setPrescribedItems(newItems); }} />
+                <Input 
+                  type="number" 
+                  min="1"
+                  className="h-8 rounded-lg text-center font-bold text-[10px] border-slate-200" 
+                  placeholder="Qty" 
+                  value={item.quantity} 
+                  onChange={(e) => { 
+                    const newItems = [...prescribedItems]; 
+                    newItems[idx].quantity = e.target.value; 
+                    setPrescribedItems(newItems); 
+                  }} 
+                />
               </div>
               <div className="col-span-3">
                 <Input className="h-8 rounded-lg text-[10px] font-bold px-2 border-slate-200" placeholder="Dosage" value={item.dosage} onChange={(e) => { const newItems = [...prescribedItems]; newItems[idx].dosage = e.target.value; setPrescribedItems(newItems); }} />

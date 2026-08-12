@@ -30,12 +30,35 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose, existing
     const fetchReceptions = async () => {
       if (!activeVisit) return;
       try {
-        const q = query(collection(db, "users"), where("role", "==", "reception"), where("branch", "==", activeVisit.branch));
+        // Fetch all reception users to prevent query/indexing blocks
+        const q = query(collection(db, "users"), where("role", "==", "reception"));
         const res = await getDocs(q);
-        setReceptions(res.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) { console.error("Error:", err); }
-      setFetching(false);
+        const allReceptions = res.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        const visitBranch = activeVisit.branch?.toString().trim().toLowerCase();
+
+        // Filter receptions matching current visit branch
+        const branchReceptions = allReceptions.filter(r => {
+          if (!visitBranch) return true;
+
+          const userBranch = (r.branch || r.branchId || "")?.toString().trim().toLowerCase();
+
+          if (Array.isArray(r.branches)) {
+            return r.branches.some(b => b?.toString().trim().toLowerCase() === visitBranch);
+          }
+
+          return userBranch === visitBranch;
+        });
+
+        // Use filtered receptions or fallback to all
+        setReceptions(branchReceptions.length > 0 ? branchReceptions : allReceptions);
+      } catch (err) { 
+        console.error("Error fetching receptions:", err); 
+      } finally {
+        setFetching(false);
+      }
     };
+
     fetchReceptions();
   }, [activeVisit]);
 
@@ -69,6 +92,7 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose, existing
 
       onClose();
     } catch (err) { 
+      console.error(err);
       alert("Cillad ayaa dhacday!"); 
     }
     setLoading(false);
@@ -85,7 +109,7 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose, existing
             <DialogTitle className="text-sm font-black uppercase tracking-tight">
                 {isEdit ? "Update Optical Prescription" : "Optical Portal"}
             </DialogTitle>
-            <p className="text-[9px] text-blue-100 font-bold uppercase">{activeVisit?.patientName}</p>
+            <p className="text-[9px] text-blue-100 font-bold uppercase">{activeVisit?.patientName} ({activeVisit?.branch})</p>
           </div>
         </div>
       </DialogHeader>
@@ -95,12 +119,16 @@ export default function OpticalPrescriptionPage({ activeVisit, onClose, existing
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
             <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Reception</label>
             <select 
-              className="w-full h-8 bg-transparent border-none text-[11px] font-bold outline-none" 
+              className="w-full h-8 bg-transparent border-none text-[11px] font-bold outline-none cursor-pointer" 
               value={selectedReception} 
               onChange={(e) => setSelectedReception(e.target.value)}
             >
-              <option value="">Select...</option>
-              {receptions.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+              <option value="">Select Receptionist...</option>
+              {receptions.map(r => (
+                <option key={r.id} value={r.id}>
+                  {r.fullName || r.name || r.email} {r.branch ? `(${r.branch})` : ''}
+                </option>
+              ))}
             </select>
           </div>
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">

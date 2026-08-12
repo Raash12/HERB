@@ -19,7 +19,7 @@ import HistorySheet from "./HistorySheet";
 // Icons
 import { 
   Loader2, Search, Pill, Glasses, 
-  User, History, Calendar, Clock, ChevronLeft, ChevronRight, Phone
+  User, History, Calendar, Clock, ChevronLeft, ChevronRight, Phone, MapPin
 } from "lucide-react";
 
 // Component: Fetch Phone
@@ -141,7 +141,8 @@ export default function DoctorAppointments() {
   const filteredVisits = visits.filter(v => {
     const nameMatch = v.patientName?.toLowerCase().includes(searchTerm.toLowerCase());
     const phoneMatch = patientPhones[v.patientId]?.includes(searchTerm);
-    return nameMatch || phoneMatch;
+    const branchMatch = v.branch?.toLowerCase().includes(searchTerm.toLowerCase());
+    return nameMatch || phoneMatch || branchMatch;
   });
 
   const totalPages = Math.ceil(filteredVisits.length / PAGE_SIZE) || 1;
@@ -182,7 +183,7 @@ export default function DoctorAppointments() {
         <div className="relative w-full md:w-96">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
           <input 
-            placeholder="SEARCH BY NAME OR PHONE..." 
+            placeholder="SEARCH BY NAME, PHONE, OR BRANCH..." 
             className="w-full pl-14 h-16 bg-white rounded-2xl border-none shadow-xl font-black uppercase text-[11px] focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-300" 
             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} 
           />
@@ -197,6 +198,7 @@ export default function DoctorAppointments() {
             <TableHeader className="bg-blue-600"> 
               <TableRow className="hover:bg-transparent border-none">
                 <TableCell className="text-white font-black py-8 pl-10 uppercase text-[10px] tracking-widest">Patient Details</TableCell>
+                <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Branch</TableCell>
                 <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Visit No.</TableCell>
                 <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Time</TableCell>
                 <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Status</TableCell>
@@ -221,6 +223,14 @@ export default function DoctorAppointments() {
                     </div>
                   </TableCell>
 
+                  {/* BRANCH COLUMN */}
+                  <TableCell className="text-center">
+                    <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-black px-3 py-1 rounded-lg border border-slate-200 uppercase text-[10px]">
+                      <MapPin size={12} className="mr-1 text-red-500 inline" />
+                      {v.branch || "N/A"}
+                    </Badge>
+                  </TableCell>
+
                   <TableCell className="text-center">
                     <VisitCounter patientId={v.patientId} />
                   </TableCell>
@@ -229,16 +239,15 @@ export default function DoctorAppointments() {
                     <div className="flex flex-col items-center">
                       <span className="font-black text-slate-700 text-sm flex items-center gap-1.5">
                         <Clock size={13} className="text-blue-500"/>
-                        {v.createdAt?.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        {v.createdAt?.toDate ? v.createdAt.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '...'}
                       </span>
                       <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                        {v.createdAt?.toDate().toLocaleDateString('en-GB')}
+                        {v.createdAt?.toDate ? v.createdAt.toDate().toLocaleDateString('en-GB') : ''}
                       </span>
                     </div>
                   </TableCell>
 
                   <TableCell className="text-center">
-                    {/* Halkan ayaan ku daray auto-checker-ka status-ka */}
                     <StatusBadge visitId={v.id} initialStatus={v.status} />
                   </TableCell>
 

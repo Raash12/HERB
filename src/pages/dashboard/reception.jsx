@@ -51,51 +51,85 @@ export default function ReceptionDashboard() {
 
   // Real-time Data Listeners
   useEffect(() => {
+    let unsubPatients = () => {};
+    let unsubOptical = () => {};
+    let unsubMedical = () => {};
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const branch = userDoc.exists() ? userDoc.data().branch : "";
-        setUserBranch(branch);
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+          // Clean & trim branch string to avoid typo gaps
+          const rawBranch = userData.branch || userData.branchId || userData.branchName || "";
+          const cleanBranch = rawBranch.toString().trim();
 
-        if (branch) {
-          const qPatients = query(collection(db, "patients"), where("branch", "==", branch));
-          const unsubPatients = onSnapshot(qPatients, (snap) => {
-            const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            const todayStr = new Date().toLocaleDateString('en-CA');
-            setStats(prev => ({
-              ...prev,
-              total: docs.length,
-              today: docs.filter(p => p.createdAt?.toDate()?.toLocaleDateString('en-CA') === todayStr).length
-            }));
-          });
+          console.log("👤 [Auth Check] Logged in user:", user.email, "| Detected Branch:", cleanBranch);
+          setUserBranch(cleanBranch);
 
-          const qOptical = query(collection(db, "prescriptions"), where("branch", "==", branch), orderBy("createdAt", "desc"));
-          const unsubOptical = onSnapshot(qOptical, (snap) => {
-            const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'optical' }));
-            setOpticalPrescriptions(data);
-          });
+          if (cleanBranch) {
+            // 1. Fetch Patients
+            const qPatients = query(
+              collection(db, "patients"), 
+              where("branch", "==", cleanBranch)
+            );
+            unsubPatients = onSnapshot(qPatients, (snap) => {
+              const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+              const todayStr = new Date().toLocaleDateString('en-CA');
+              setStats(prev => ({
+                ...prev,
+                total: docs.length,
+                today: docs.filter(p => p.createdAt?.toDate()?.toLocaleDateString('en-CA') === todayStr).length
+              }));
+            }, err => console.error("🔥 Patients listener error:", err));
 
-          const qMedical = query(collection(db, "medical_prescriptions"), where("branch", "==", branch), orderBy("createdAt", "desc"));
-          const unsubMedical = onSnapshot(qMedical, (snap) => {
-            const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'medical' }));
-            setMedicalPrescriptions(data);
+            // 2. Fetch Optical Prescriptions (Flexibility for branch or branchId)
+            const qOptical = query(
+              collection(db, "prescriptions"), 
+              where("branch", "==", cleanBranch), 
+              orderBy("createdAt", "desc")
+            );
+            unsubOptical = onSnapshot(qOptical, (snap) => {
+              const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'optical' }));
+              console.log(`👓 [Optical Fetch] Branch (${cleanBranch}):`, data.length, "items found.");
+              setOpticalPrescriptions(data);
+            }, err => console.error("🔥 Optical listener error:", err));
+
+            // 3. Fetch Medical Prescriptions
+            const qMedical = query(
+              collection(db, "medical_prescriptions"), 
+              where("branch", "==", cleanBranch), 
+              orderBy("createdAt", "desc")
+            );
+            unsubMedical = onSnapshot(qMedical, (snap) => {
+              const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'medical' }));
+              console.log(`💊 [Medical Fetch] Branch (${cleanBranch}):`, data.length, "items found.");
+              setMedicalPrescriptions(data);
+              setInitialLoading(false);
+            }, err => console.error("🔥 Medical listener error:", err));
+
+          } else {
+            console.warn("⚠️ User has NO branch assigned in Firestore 'users' collection!");
             setInitialLoading(false);
-          });
-
-          return () => {
-            unsubPatients();
-            unsubOptical();
-            unsubMedical();
-          };
+          }
+        } catch (error) {
+          console.error("🔥 Error getting user profile:", error);
+          setInitialLoading(false);
         }
       } else {
         navigate("/");
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeAuth();
+      unsubPatients();
+      unsubOptical();
+      unsubMedical();
+    };
   }, [navigate]);
 
+  // Combine and Sort Prescriptions
   useEffect(() => {
     const combined = [...opticalPrescriptions, ...medicalPrescriptions].sort((a, b) => 
       (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
@@ -110,6 +144,7 @@ export default function ReceptionDashboard() {
   const filteredData = allPrescriptions.filter(item => 
     (item.patientName || item.displayName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 

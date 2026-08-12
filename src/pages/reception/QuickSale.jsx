@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../../firebase";
-import { collection, getDocs, query, where, doc, getDoc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { 
+  collection, query, where, doc, getDoc, 
+  updateDoc, addDoc, serverTimestamp, onSnapshot 
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,7 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Toaster, toast } from "sonner";
-import { ShoppingCart, Loader2, Trash2, CheckCircle, Search, Tag, ShoppingBag, Pill, ChevronLeft, ChevronRight, User, Stethoscope } from "lucide-react";
+import { 
+  ShoppingCart, Loader2, Trash2, CheckCircle, Search, 
+  Tag, ShoppingBag, Pill, ChevronLeft, ChevronRight, User, Stethoscope 
+} from "lucide-react";
 
 export default function QuickSale() {
   const [loading, setLoading] = useState(true);
@@ -24,28 +31,71 @@ export default function QuickSale() {
   const itemsPerPage = 8;
 
   useEffect(() => {
-    const fetchData = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    let unsubStock = () => {};
+
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const uSnap = await getDoc(doc(db, "users", user.uid));
         if (uSnap.exists()) {
           const uData = uSnap.data();
           setUserData(uData);
-          const q = query(collection(db, "branch_medicines"), where("branchId", "==", uData.branch));
-          const sSnap = await getDocs(q);
-          setStock(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+          // Cleaning branch string to prevent match errors
+          const rawBranch = uData.branch || uData.branchId || "";
+          const cleanBranch = rawBranch.toString().trim();
+
+          if (cleanBranch) {
+            // Real-time listener for branch medicines
+            const q = query(
+              collection(db, "branch_medicines"), 
+              where("branchId", "==", cleanBranch)
+            );
+
+            unsubStock = onSnapshot(q, (snapshot) => {
+              const meds = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+              setStock(meds);
+              setLoading(false);
+            }, (error) => {
+              console.error("🔥 Branch Medicines Error:", error);
+              setLoading(false);
+            });
+          } else {
+            console.warn("⚠️ User has no valid branch configured.");
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
         }
-      } catch (e) { console.error(e); }
-      setLoading(false);
+      } catch (e) {
+        console.error("🔥 Error fetching user or medicines:", e);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      unsubAuth();
+      unsubStock();
     };
-    fetchData();
   }, []);
 
   const addToCart = (med) => {
     if (med.quantity <= 0) return toast.error("Stock-ga waa madhan yahay!");
-    if (!cart.find(i => i.id === med.id)) {
-      setCart([...cart, { ...med, sellQty: 1, dosage: "1x1", totalItemPrice: med.unitPrice }]);
+    
+    const existingIndex = cart.findIndex(i => i.id === med.id);
+    if (existingIndex > -1) {
+      toast.info("Aad baad ugu dartay Cart-ka. Quantity-ga waa la beddeli karaa.");
+    } else {
+      setCart([...cart, { 
+        ...med, 
+        sellQty: 1, 
+        dosage: "1x1", 
+        totalItemPrice: Number(med.unitPrice || 0) 
+      }]);
     }
     setIsCartOpen(true);
   };
@@ -54,51 +104,88 @@ export default function QuickSale() {
     setCart(cart.map(i => {
       if (i.id === id) {
         const updated = { ...i, [field]: val };
-        if (field === "sellQty") updated.totalItemPrice = (parseFloat(val) || 0) * i.unitPrice;
+        if (field === "sellQty") {
+          const qty = parseFloat(val) || 0;
+          updated.totalItemPrice = qty * Number(i.unitPrice || 0);
+        }
         return updated;
       }
       return i;
     }));
   };
 
-  const subTotal = cart.reduce((acc, i) => acc + i.totalItemPrice, 0);
-  const finalTotal = subTotal - (parseFloat(discount) || 0);
+  const subTotal = cart.reduce((acc, i) => acc + (Number(i.totalItemPrice) || 0), 0);
+  const finalTotal = Math.max(0, subTotal - (parseFloat(discount) || 0));
 
   const handleConfirmPay = async () => {
     if (!cart.length) return;
+
+    // Validate quantities against stock
+    for (const item of cart) {
+      const currentMed = stock.find(s => s.id === item.id);
+      if (!currentMed || currentMed.quantity < parseFloat(item.sellQty)) {
+        return toast.error(`Stock-ga ${item.medicineName} naguma filna!`);
+      }
+    }
+
     setIsSubmitting(true);
-    const tId = toast.loading("Processing...");
+    const tId = toast.loading("Processing sale...");
+
     try {
-      for (const i of cart) {
-        await updateDoc(doc(db, "branch_medicines", i.id), {
-          quantity: i.quantity - parseFloat(i.sellQty),
+      // 1. Update medicine stock in Firestore
+      for (const item of cart) {
+        const currentMed = stock.find(s => s.id === item.id);
+        const newQty = (currentMed?.quantity || 0) - parseFloat(item.sellQty);
+        
+        await updateDoc(doc(db, "branch_medicines", item.id), {
+          quantity: Math.max(0, newQty),
           updatedAt: serverTimestamp()
         });
       }
+
+      // 2. Save sale record
+      const cleanBranch = (userData?.branch || userData?.branchId || "").toString().trim();
       await addDoc(collection(db, "sales"), {
         items: cart, 
         subTotal, 
         discount: parseFloat(discount) || 0, 
         finalTotal,
         type: saleType, 
-        branchId: userData.branch, 
-        sellerId: auth.currentUser.uid, 
+        branchId: cleanBranch, 
+        sellerId: auth.currentUser?.uid || "", 
         createdAt: serverTimestamp()
       });
-      toast.success("Sale completed!", { id: tId });
-      setCart([]); setIsCartOpen(false);
+
+      toast.success("Sale completed successfully!", { id: tId });
+      
+      // Reset State cleanly without full page refresh
+      setCart([]); 
+      setIsCartOpen(false);
       setDiscount(0);
       setSaleType("walk-in");
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (e) { toast.error(e.message, { id: tId }); }
-    setIsSubmitting(false);
+    } catch (e) { 
+      console.error(e);
+      toast.error(e.message || "Error processing sale", { id: tId }); 
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const filtered = stock.filter(i => i.medicineName.toLowerCase().includes(searchTerm.toLowerCase()));
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const filtered = stock.filter(i => 
+    (i.medicineName || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-blue-50/20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-blue-50/20">
+        <Loader2 className="animate-spin text-blue-600 mb-2" size={40} />
+        <p className="text-xs font-bold text-blue-900 uppercase">Loading Stock...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-[1300px] mx-auto space-y-6 bg-blue-50/20 min-h-screen">
@@ -109,7 +196,7 @@ export default function QuickSale() {
         <div className="md:col-span-2 bg-white p-6 rounded-[2rem] shadow-sm flex justify-between items-center border border-blue-100">
           <div>
             <h1 className="text-2xl font-black text-blue-900 uppercase">Horseed <span className="text-blue-600">POS</span></h1>
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{userData?.branchName || "Branch Panel"}</p>
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{userData?.branchName || userData?.branch || "Branch Panel"}</p>
           </div>
           <Button onClick={() => setIsCartOpen(true)} className="rounded-2xl bg-blue-600 hover:bg-blue-700 h-14 px-8 relative shadow-lg shadow-blue-100 transition-all active:scale-95">
             <ShoppingBag size={20} className="mr-2" />
@@ -117,16 +204,16 @@ export default function QuickSale() {
           </Button>
         </div>
         <div className="bg-blue-600 p-6 rounded-[2rem] shadow-lg shadow-blue-200 flex items-center gap-5 text-white">
-            <div className="h-14 w-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <Pill size={28} />
+          <div className="h-14 w-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+            <Pill size={28} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-blue-100 uppercase tracking-wider mb-1">Total Medicines</p>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-3xl font-black">{stock.length}</h2>
+              <span className="text-[10px] font-bold text-blue-100/80 uppercase italic">Available</span>
             </div>
-            <div>
-                <p className="text-[10px] font-black text-blue-100 uppercase tracking-wider mb-1">Total Medicines</p>
-                <div className="flex items-baseline gap-2">
-                    <h2 className="text-3xl font-black">{stock.length}</h2>
-                    <span className="text-[10px] font-bold text-blue-100/80 uppercase italic text-white">Available</span>
-                </div>
-            </div>
+          </div>
         </div>
       </div>
 
@@ -152,32 +239,40 @@ export default function QuickSale() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentItems.map(item => (
-              <TableRow key={item.id} className="hover:bg-blue-50/30 transition-colors border-b border-blue-50">
-                <TableCell className="p-6 font-black text-xs uppercase text-blue-800">{item.medicineName}</TableCell>
-                <TableCell className="text-center font-black text-blue-900">${item.unitPrice.toFixed(2)}</TableCell>
-                <TableCell className="text-center">
-                  <Badge className={`${item.quantity < 10 ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'} border-none font-black text-[10px]`}>
-                    {item.quantity} PCS
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right pr-8">
-                  <Button onClick={() => addToCart(item)} className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase px-8 h-10 rounded-xl transition-all active:scale-95 shadow-md">Add</Button>
+            {currentItems.length > 0 ? (
+              currentItems.map(item => (
+                <TableRow key={item.id} className="hover:bg-blue-50/30 transition-colors border-b border-blue-50">
+                  <TableCell className="p-6 font-black text-xs uppercase text-blue-800">{item.medicineName}</TableCell>
+                  <TableCell className="text-center font-black text-blue-900">${Number(item.unitPrice || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={`${item.quantity < 10 ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'} border-none font-black text-[10px]`}>
+                      {item.quantity} PCS
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right pr-8">
+                    <Button onClick={() => addToCart(item)} className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase px-8 h-10 rounded-xl transition-all active:scale-95 shadow-md">Add</Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center p-8 text-xs font-bold text-slate-400 uppercase">
+                  Wax Dawa ah ama Stock ah lagama helin Branch-kan
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
         <div className="p-6 bg-white border-t border-blue-50 flex items-center justify-between">
-            <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Page {currentPage} of {totalPages || 1}</span>
-            <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="rounded-xl h-10 w-10 border-blue-100 text-blue-600"><ChevronLeft size={18} /></Button>
-                <Button variant="outline" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0} className="rounded-xl h-10 w-10 border-blue-100 text-blue-600"><ChevronRight size={18} /></Button>
-            </div>
+          <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Page {currentPage} of {totalPages}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="rounded-xl h-10 w-10 border-blue-100 text-blue-600"><ChevronLeft size={18} /></Button>
+            <Button variant="outline" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0} className="rounded-xl h-10 w-10 border-blue-100 text-blue-600"><ChevronRight size={18} /></Button>
+          </div>
         </div>
       </Card>
 
-      {/* YAREEYAY POPUP (Dialog) */}
+      {/* Cart Dialog */}
       <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
         <DialogContent className="sm:max-w-[400px] p-0 border-none rounded-[2.5rem] overflow-hidden shadow-2xl bg-white max-h-[90vh] flex flex-col">
           <div className="bg-blue-600 p-6 text-white shrink-0">
@@ -208,12 +303,12 @@ export default function QuickSale() {
                   <button onClick={() => setCart(cart.filter(i => i.id !== item.id))} className="absolute -top-1 -right-1 bg-rose-500 text-white p-1 rounded-full shadow-lg"><Trash2 size={10}/></button>
                   <div className="flex justify-between mb-3 items-start font-black text-[10px] uppercase text-blue-800">
                     <span className="max-w-[70%]">{item.medicineName}</span>
-                    <span className="text-blue-600 text-xs">${item.totalItemPrice.toFixed(2)}</span>
+                    <span className="text-blue-600 text-xs">${(Number(item.totalItemPrice) || 0).toFixed(2)}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white p-2 rounded-xl border border-blue-50 text-blue-800">
                       <label className="text-[8px] font-black text-blue-300 uppercase block">Qty</label>
-                      <input type="number" value={item.sellQty} onChange={(e) => updateCartItem(item.id, "sellQty", e.target.value)} className="w-full bg-transparent font-black text-xs outline-none" />
+                      <input type="number" min="1" value={item.sellQty} onChange={(e) => updateCartItem(item.id, "sellQty", e.target.value)} className="w-full bg-transparent font-black text-xs outline-none" />
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-blue-50 text-blue-800">
                       <label className="text-[8px] font-black text-blue-300 uppercase block">Dosage</label>
@@ -233,7 +328,7 @@ export default function QuickSale() {
               </div>
               <div className="flex-1 bg-blue-50 p-3 rounded-xl flex items-center gap-2 border border-blue-200">
                 <Tag size={12} className="text-blue-500" />
-                <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="Disc" className="w-full bg-transparent font-black text-xs text-blue-600 outline-none" />
+                <input type="number" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="Disc" className="w-full bg-transparent font-black text-xs text-blue-600 outline-none" />
               </div>
             </div>
             <div className="flex justify-between items-end">

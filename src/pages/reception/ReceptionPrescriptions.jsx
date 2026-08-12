@@ -19,11 +19,31 @@ import { handlePrintPrescription } from "@/utils/printPrescription";
 import { handlePrintMedical } from "@/utils/printMedical";
 import { handlePrintMedicalInvoice } from "@/utils/printMedicalInvoice";
 
-export default function ReceptionPrescriptions({ data }) {
+export default function ReceptionPrescriptions({ data = [] }) {
   const [patientNames, setPatientNames] = useState({});
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [discounts, setDiscounts] = useState({}); 
   const [liveStock, setLiveStock] = useState({});
+
+  // 🛠️ LOG 1: Hubi xogta guud ee soo gaartay component-kan
+  useEffect(() => {
+    console.log("📥 [ReceptionPrescriptions] Data received from parent component:", data);
+    if (!data || data.length === 0) {
+      console.warn("⚠️ [ReceptionPrescriptions] Warning: 'data' prop is empty or undefined!");
+    } else {
+      data.forEach((order, index) => {
+        console.log(`📋 Order #${index + 1} ID: ${order.id}`, {
+          patientName: order.patientName,
+          category: order.category,
+          status: order.status,
+          branch: order.branch,
+          branchId: order.branchId,
+          sendTo: order.sendTo,
+          itemsCount: order.items?.length || 0
+        });
+      });
+    }
+  }, [data]);
 
   // 1. Fetch Patient Names
   useEffect(() => {
@@ -31,8 +51,17 @@ export default function ReceptionPrescriptions({ data }) {
       const namesMap = {};
       for (const order of data) {
         if (order.patientId && !patientNames[order.patientId]) {
-          const pDoc = await getDoc(doc(db, "patients", order.patientId));
-          if (pDoc.exists()) namesMap[order.patientId] = pDoc.data().fullName;
+          try {
+            console.log(`🔍 Fetching patient details for ID: ${order.patientId}`);
+            const pDoc = await getDoc(doc(db, "patients", order.patientId));
+            if (pDoc.exists()) {
+              namesMap[order.patientId] = pDoc.data().fullName;
+            } else {
+              console.warn(`⚠️ Patient doc with ID ${order.patientId} not found in Firestore!`);
+            }
+          } catch (err) {
+            console.error(`🔥 Error fetching patient ${order.patientId}:`, err);
+          }
         }
       }
       setPatientNames(prev => ({ ...prev, ...namesMap }));
@@ -42,17 +71,27 @@ export default function ReceptionPrescriptions({ data }) {
 
   // 2. Fetch Live Prices & Stock
   const fetchLiveInfo = async (items) => {
+    console.log("💊 Fetching live inventory stock for items:", items);
     const infoMap = {};
     for (const item of items) {
       if (item.medicineId) {
-        const medDoc = await getDoc(doc(db, "branch_medicines", item.medicineId));
-        if (medDoc.exists()) {
-          const medData = medDoc.data();
-          infoMap[item.medicineId] = {
-            unitPrice: medData.quantity > 0 ? (medData.unitPrice || (medData.price / medData.quantity)) : 0,
-            currentQty: Number(medData.quantity || 0)
-          };
+        try {
+          const medDoc = await getDoc(doc(db, "branch_medicines", item.medicineId));
+          if (medDoc.exists()) {
+            const medData = medDoc.data();
+            console.log(`✅ Medicine fetched (${item.medicineName || item.medicineId}):`, medData);
+            infoMap[item.medicineId] = {
+              unitPrice: medData.quantity > 0 ? (medData.unitPrice || (medData.price / medData.quantity)) : 0,
+              currentQty: Number(medData.quantity || 0)
+            };
+          } else {
+            console.error(`❌ Medicine ID ${item.medicineId} not found in 'branch_medicines'!`);
+          }
+        } catch (err) {
+          console.error(`🔥 Error fetching medicine ${item.medicineId}:`, err);
         }
+      } else {
+        console.warn("⚠️ Medicine item is missing 'medicineId':", item);
       }
     }
     setLiveStock(prev => ({ ...prev, ...infoMap }));
@@ -74,18 +113,21 @@ export default function ReceptionPrescriptions({ data }) {
     if (!window.confirm("Ma hubtaa inaad xaqiijiso dalabkan Optical-ka ah?")) return;
     
     try {
+      console.log("🔄 Confirming optical order:", order.id);
       const batch = writeBatch(db);
       const docRef = doc(db, "prescriptions", order.id);
       
       batch.update(docRef, {
         status: "completed",
         completedAt: serverTimestamp(),
-        paid: true // Waad ku dari kartaa haddii lacagta la rabo in la xaqiijiyo
+        paid: true
       });
 
       await batch.commit();
+      console.log("✅ Optical order confirmed successfully!");
       alert("Dalabka Optical-ka waa la xaqiijiyey! ✅");
     } catch (e) {
+      console.error("🔥 Error confirming optical order:", e);
       alert("Cillad: " + e.message);
     }
   };
@@ -129,6 +171,7 @@ export default function ReceptionPrescriptions({ data }) {
       for (const item of order.items) {
         const stockInfo = liveStock[item.medicineId];
         if (!stockInfo || stockInfo.currentQty < item.quantity) {
+          console.warn(`⚠️ Insufficient stock for ${item.medicineName}: Available = ${stockInfo?.currentQty}, Requested = ${item.quantity}`);
           return alert(`MA DHACAYSO: Dawada "${item.medicineName}" stock-geedu waa ${stockInfo?.currentQty || 0}. Ma bixin kartid!`);
         }
       }
@@ -171,6 +214,8 @@ export default function ReceptionPrescriptions({ data }) {
 
       const finalPaid = totalOriginalPrice - totalDiscountAmount;
 
+      console.log(`🚀 Updating prescription status to 'paid' in collection '${coll}' for ID: ${order.id}`);
+
       batch.update(doc(db, coll, order.id), { 
         status: isMedical ? "paid" : "completed", 
         paid: true, 
@@ -181,10 +226,14 @@ export default function ReceptionPrescriptions({ data }) {
       });
 
       await batch.commit();
+      console.log("✅ Dispense transaction committed successfully!");
       handlePrintPOS({...order, items: mappedItems}, totalDiscountAmount);
       alert(`Si guul leh ayaa loo xaqiijiyey! ✅`);
       setSelectedOrderId(null);
-    } catch (e) { alert("Cillad: " + e.message); }
+    } catch (e) { 
+      console.error("🔥 Error during dispense confirmation:", e);
+      alert("Cillad: " + e.message); 
+    }
   };
 
   const handleEnhancedPrint = async (order) => {
@@ -203,16 +252,20 @@ export default function ReceptionPrescriptions({ data }) {
         }
       };
       order.category === 'medical' ? handlePrintMedical(completeOrder) : handlePrintPrescription(completeOrder);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("🔥 Error in printing:", e); }
   };
 
   const handleDelete = async (order) => {
     if (!window.confirm(`Ma hubtaa inaad tirtirto?`)) return;
     try {
       const coll = order.category === 'medical' ? "medical_prescriptions" : "prescriptions";
+      console.log(`🗑️ Deleting document from ${coll} with ID: ${order.id}`);
       await deleteDoc(doc(db, coll, order.id));
       alert("Deleted! 🗑️");
-    } catch (e) { alert(e.message); }
+    } catch (e) { 
+      console.error("🔥 Error deleting document:", e);
+      alert(e.message); 
+    }
   };
 
   return (
@@ -259,7 +312,6 @@ export default function ReceptionPrescriptions({ data }) {
                     </TableCell>
                     <TableCell className="text-right pr-8">
                       <div className="flex justify-end gap-2">
-                        {/* Shuruudda cusub ee Optical-ka */}
                         {!isMedical && !isPaid && (
                           <Button 
                             onClick={() => handleConfirmOptical(order)} 
