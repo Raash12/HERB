@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 // Icons
-import { Printer, PackageCheck, Trash2, User, ReceiptText, Eye, X, ShoppingBag, Pill, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Printer, PackageCheck, Trash2, User, ReceiptText, Eye, X, ShoppingBag, Pill, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
 
 // Utils
 import { handlePrintPrescription } from "@/utils/printPrescription";
@@ -24,8 +24,9 @@ export default function ReceptionPrescriptions({ data = [] }) {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [discounts, setDiscounts] = useState({}); 
   const [liveStock, setLiveStock] = useState({});
+  // Track removed items per order ID: { [orderId]: [medicineId1, medicineId2] }
+  const [removedItems, setRemovedItems] = useState({});
 
-  // 🛠️ LOG 1: Hubi xogta guud ee soo gaartay component-kan
   useEffect(() => {
     console.log("📥 [ReceptionPrescriptions] Data received from parent component:", data);
     if (!data || data.length === 0) {
@@ -108,7 +109,19 @@ export default function ReceptionPrescriptions({ data = [] }) {
     }
   };
 
-  // Logic-ga lagu xaqiijinayo dalabka Optical-ka
+  // Toggle item removal locally for an order
+  const handleToggleRemoveItem = (orderId, medicineId) => {
+    setRemovedItems(prev => {
+      const currentList = prev[orderId] || [];
+      if (currentList.includes(medicineId)) {
+        return { ...prev, [orderId]: currentList.filter(id => id !== medicineId) };
+      } else {
+        return { ...prev, [orderId]: [...currentList, medicineId] };
+      }
+    });
+  };
+
+  // Confirm Optical Order
   const handleConfirmOptical = async (order) => {
     if (!window.confirm("Ma hubtaa inaad xaqiijiso dalabkan Optical-ka ah?")) return;
     
@@ -137,9 +150,12 @@ export default function ReceptionPrescriptions({ data = [] }) {
       ? Number(customDiscount) 
       : Number(discounts[order.id] || order.discount || 0);
 
+    const removedList = removedItems[order.id] || [];
+    const activeItems = (order.items || []).filter(item => !removedList.includes(item.medicineId));
+
     let calculatedOriginalTotal = 0;
 
-    const itemsWithPrices = (order.items || []).map(item => {
+    const itemsWithPrices = activeItems.map(item => {
       const info = liveStock[item.medicineId] || {};
       const currentUnitPrice = info.unitPrice || item.price || item.unitPrice || 0;
       const qty = Number(item.quantity || 0);
@@ -166,9 +182,15 @@ export default function ReceptionPrescriptions({ data = [] }) {
 
   const handleConfirmDispense = async (order) => {
     const isMedical = order.category === 'medical';
+    const removedList = removedItems[order.id] || [];
+    const activeItems = (order.items || []).filter(item => !removedList.includes(item.medicineId));
+
+    if (activeItems.length === 0) {
+      return alert("MA DHACAYSO: Dhamaan dawooyinkii waa la kansalay! Dooro ugu dheyateyn 1 dawo.");
+    }
     
     if (isMedical) {
-      for (const item of order.items) {
+      for (const item of activeItems) {
         const stockInfo = liveStock[item.medicineId];
         if (!stockInfo || stockInfo.currentQty < item.quantity) {
           console.warn(`⚠️ Insufficient stock for ${item.medicineName}: Available = ${stockInfo?.currentQty}, Requested = ${item.quantity}`);
@@ -187,8 +209,8 @@ export default function ReceptionPrescriptions({ data = [] }) {
     let mappedItems = [];
 
     try {
-      if (isMedical && order.items) {
-        for (const item of order.items) {
+      if (isMedical && activeItems.length > 0) {
+        for (const item of activeItems) {
           const info = liveStock[item.medicineId] || {};
           const unitPrice = info.unitPrice || item.price || item.unitPrice || 0;
           const qty = Number(item.quantity || 0);
@@ -366,23 +388,37 @@ export default function ReceptionPrescriptions({ data = [] }) {
                                 const price = info.unitPrice || item.price || item.unitPrice || 0;
                                 const stockAvailable = info.currentQty || 0;
                                 const isOutOfStock = stockAvailable < item.quantity;
+                                const isRemoved = (removedItems[order.id] || []).includes(item.medicineId);
 
                                 return (
-                                  <div key={idx} className={`flex justify-between items-center p-4 rounded-3xl border transition-all ${isOutOfStock ? 'bg-red-50 border-red-200' : 'bg-slate-50/50 border-slate-100'}`}>
+                                  <div key={idx} className={`relative flex justify-between items-center p-4 rounded-3xl border transition-all ${isRemoved ? 'bg-gray-100 border-gray-300 opacity-50 line-through' : isOutOfStock ? 'bg-red-50 border-red-200' : 'bg-slate-50/50 border-slate-100'}`}>
                                     <div className="flex items-center gap-4">
-                                      <div className={`p-2.5 rounded-2xl shadow-sm border ${isOutOfStock ? 'bg-white text-red-500' : 'bg-white text-indigo-500'}`}>
+                                      <div className={`p-2.5 rounded-2xl shadow-sm border ${isRemoved ? 'bg-gray-200 text-gray-400' : isOutOfStock ? 'bg-white text-red-500' : 'bg-white text-indigo-500'}`}>
                                         <Pill size={16}/>
                                       </div>
                                       <div>
-                                        <span className={`text-[11px] font-black uppercase leading-tight ${isOutOfStock ? 'text-red-700' : 'text-slate-700'}`}>{item.medicineName}</span>
-                                        <div className={`text-[9px] font-bold ${isOutOfStock ? 'text-red-500' : 'text-slate-400'}`}>
+                                        <span className={`text-[11px] font-black uppercase leading-tight ${isRemoved ? 'text-gray-500' : isOutOfStock ? 'text-red-700' : 'text-slate-700'}`}>{item.medicineName}</span>
+                                        <div className={`text-[9px] font-bold ${isRemoved ? 'text-gray-400' : isOutOfStock ? 'text-red-500' : 'text-slate-400'}`}>
                                           Stock: {stockAvailable} PCS
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      <div className="text-[9px] font-bold text-slate-400 uppercase">{item.quantity} x ${price.toFixed(2)}</div>
-                                      <div className="text-sm font-black text-indigo-600">${(item.quantity * price).toFixed(2)}</div>
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase">{item.quantity} x ${price.toFixed(2)}</div>
+                                        <div className={`text-sm font-black ${isRemoved ? 'text-gray-400' : 'text-indigo-600'}`}>${(item.quantity * price).toFixed(2)}</div>
+                                      </div>
+                                      {!isPaid && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => handleToggleRemoveItem(order.id, item.medicineId)}
+                                          title={isRemoved ? "Dib ugu soo celi" : "Kansal dawadan"}
+                                          className={`h-8 w-8 rounded-full p-0 ${isRemoved ? 'text-emerald-600 hover:bg-emerald-100' : 'text-red-500 hover:bg-red-100'}`}
+                                        >
+                                          {isRemoved ? <RotateCcw size={14} /> : <X size={16} />}
+                                        </Button>
+                                      )}
                                     </div>
                                   </div>
                                 );
@@ -392,10 +428,14 @@ export default function ReceptionPrescriptions({ data = [] }) {
                             {(() => {
                               let subtotal = 0;
                               let hasStockError = false;
+                              const removedList = removedItems[order.id] || [];
+
                               (order.items || []).forEach(it => {
-                                const info = liveStock[it.medicineId] || {};
-                                subtotal += (info.unitPrice || it.price || it.unitPrice || 0) * (it.quantity || 0);
-                                if ((info.currentQty || 0) < (it.quantity || 0)) hasStockError = true;
+                                if (!removedList.includes(it.medicineId)) {
+                                  const info = liveStock[it.medicineId] || {};
+                                  subtotal += (info.unitPrice || it.price || it.unitPrice || 0) * (it.quantity || 0);
+                                  if ((info.currentQty || 0) < (it.quantity || 0)) hasStockError = true;
+                                }
                               });
                               
                               const discountValue = Number(discounts[order.id] || order.discount || 0);
