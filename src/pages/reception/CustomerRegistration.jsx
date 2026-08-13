@@ -28,7 +28,7 @@ const SOMALIA_DISTRICTS = {
   Puntland: ["Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla" , "Bandar Qaasim" ,"Caluula" , "Iskushuban" ,"Carmo" , "Galdogob" ,"Jariiban" ,"Bacadweyn"],
   Jubaland: ["Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley" ,"Garbahaarey " , "Baardheere" , "Ceelwaaq" , "Luuq" ,"Belet Xaawo" ,"Buurdhuubo" ,"Bu'aale " , "Jilib" , "Saakow" ,"Jilib"],
   Galmudug: ["Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere" , "galhareri"],
-  "Koofur Galbeed": ["Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere"],
+  "Koofur Galbeed": ["Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"ceelasha biyaha","Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere" , ],
   Somaliland: ["Hargeisa","Berbera","Burao","Borama","Erigavo"],
   "Waqoyi Bari": ["Laascaanood","Taleex","Xudun"]
 };

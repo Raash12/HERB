@@ -40,6 +40,33 @@ const PatientInfoRow = ({ patientId, onPhoneFetch }) => {
   return <span>{phone}</span>;
 };
 
+// Component: Fetch Age
+const PatientAgeCell = ({ patientId, visitAge }) => {
+  const [age, setAge] = useState(visitAge || "...");
+  useEffect(() => {
+    if (visitAge) {
+      setAge(visitAge);
+      return;
+    }
+    const fetchAge = async () => {
+      if (!patientId) return;
+      const pSnap = await getDoc(doc(db, "patients", patientId));
+      if (pSnap.exists()) {
+        setAge(pSnap.data().age || pSnap.data().patientAge || "N/A");
+      } else {
+        setAge("N/A");
+      }
+    };
+    fetchAge();
+  }, [patientId, visitAge]);
+
+  return (
+    <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-black px-3 py-1 rounded-lg border border-slate-200 uppercase text-[10px]">
+      {age} {age !== "N/A" && age !== "..." ? "Yrs" : ""}
+    </Badge>
+  );
+};
+
 // Component: Auto Status Checker (Check if Medical or Optical exists)
 const StatusBadge = ({ visitId, initialStatus }) => {
   const [status, setStatus] = useState(initialStatus || "waiting");
@@ -198,6 +225,7 @@ export default function DoctorAppointments() {
             <TableHeader className="bg-blue-600"> 
               <TableRow className="hover:bg-transparent border-none">
                 <TableCell className="text-white font-black py-8 pl-10 uppercase text-[10px] tracking-widest">Patient Details</TableCell>
+                <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Age</TableCell>
                 <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Branch</TableCell>
                 <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Visit No.</TableCell>
                 <TableCell className="text-white font-black text-center uppercase text-[10px] tracking-widest">Time</TableCell>
@@ -221,6 +249,11 @@ export default function DoctorAppointments() {
                         </div>
                       </div>
                     </div>
+                  </TableCell>
+
+                  {/* AGE COLUMN */}
+                  <TableCell className="text-center">
+                    <PatientAgeCell patientId={v.patientId} visitAge={v.patientAge || v.age} />
                   </TableCell>
 
                   {/* BRANCH COLUMN */}
