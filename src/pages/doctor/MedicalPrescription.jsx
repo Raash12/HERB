@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { db, auth } from "../../firebase";
 import { 
   collection, query, where, onSnapshot, getDocs, 
-  addDoc, updateDoc, doc, serverTimestamp 
+  addDoc, updateDoc, doc, getDoc, serverTimestamp 
 } from "firebase/firestore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,25 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
 
   const isEdit = !!existingPrescription;
 
+  // Helper to safely parse strings/arrays into clean branch arrays
+  const extractBranches = (val) => {
+    if (!val) return [];
+    let list = [];
+    if (Array.isArray(val)) {
+      val.forEach(item => {
+        if (item) list.push(...String(item).split(","));
+      });
+    } else {
+      list = String(val).split(",");
+    }
+    return list.map(s => s.trim().toLowerCase()).filter(Boolean);
+  };
+
+  // Helper to normalize spelling differences (e.g. 'naciim' vs 'nacim')
+  const normalize = (str) => {
+    return str.toLowerCase().replace(/ii/g, "i").replace(/\s+/g, " ").trim();
+  };
+
   useEffect(() => {
     if (!activeVisit) return;
 
@@ -33,31 +52,60 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
 
     const fetchData = async () => {
       try {
-        // 1. Fetch reception users
+        const currentUser = auth.currentUser;
+        let doctorBranchSet = new Set();
+
+        // 1. Fetch Doctor Profile branches
+        if (currentUser) {
+          const docSnap = await getDoc(doc(db, "users", currentUser.uid));
+          if (docSnap.exists()) {
+            const d = docSnap.data();
+            extractBranches(d.branch).forEach(b => doctorBranchSet.add(b));
+            extractBranches(d.branchId).forEach(b => doctorBranchSet.add(b));
+            extractBranches(d.branches).forEach(b => doctorBranchSet.add(b));
+          }
+
+          // 2. Fetch Doctor's Visit history branches
+          const visitsQ = query(collection(db, "visits"), where("doctorId", "==", currentUser.uid));
+          const visitsSnap = await getDocs(visitsQ);
+
+          visitsSnap.docs.forEach(vDoc => {
+            const v = vDoc.data();
+            extractBranches(v.branch).forEach(b => doctorBranchSet.add(b));
+            extractBranches(v.branchId).forEach(b => doctorBranchSet.add(b));
+          });
+        }
+
+        // Active Visit branch
+        extractBranches(activeVisit.branch).forEach(b => doctorBranchSet.add(b));
+        extractBranches(activeVisit.branchId).forEach(b => doctorBranchSet.add(b));
+
+        const doctorBranches = Array.from(doctorBranchSet);
+
+        // 3. Fetch all Receptionists
         const recQ = query(collection(db, "users"), where("role", "==", "reception"));
         const recSnap = await getDocs(recQ);
         const allReceptions = recSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // 2. Filter receptions matching visit branch
-        const visitBranch = (activeVisit.branch || activeVisit.branchId || "")?.toString().trim().toLowerCase();
+        // 4. Filter receptionists matching doctor's assigned branches
+        const filteredReceptions = allReceptions.filter(r => {
+          const rBranches = [
+            ...extractBranches(r.branch),
+            ...extractBranches(r.branchId),
+            ...extractBranches(r.branches)
+          ];
 
-        const branchReceptions = allReceptions.filter(r => {
-          if (!visitBranch) return true;
-          
-          const userBranch = (r.branch || r.branchId || "")?.toString().trim().toLowerCase();
-          
-          if (Array.isArray(r.branches)) {
-            return r.branches.some(b => b?.toString().trim().toLowerCase() === visitBranch);
-          }
-          
-          return userBranch === visitBranch;
+          if (doctorBranches.length === 0) return true;
+
+          return rBranches.some(rb => 
+            doctorBranches.some(db => normalize(rb) === normalize(db))
+          );
         });
 
-        setReceptions(branchReceptions.length > 0 ? branchReceptions : allReceptions);
+        setReceptions(filteredReceptions);
 
-        // 3. Fetch inventory for branch
+        // 5. Fetch Inventory for active visit branch
         const targetBranch = activeVisit.branchId || activeVisit.branch || "";
-        console.log("🔍 Fetching inventory for Branch:", targetBranch);
 
         if (targetBranch) {
           const invQ = query(
@@ -69,7 +117,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
             setInventory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             setFetching(false);
           }, (err) => {
-            console.error("🔥 Inventory fetch error:", err);
+            console.error("Error fetching inventory:", err);
             setFetching(false);
           });
         } else {
@@ -77,7 +125,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         }
 
       } catch (err) {
-        console.error("🔥 Fetch error:", err);
+        console.error("Error fetching prescription data:", err);
         setFetching(false);
       }
     };
@@ -119,22 +167,17 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         updatedAt: serverTimestamp(),
       };
 
-      console.log("🚀 SENDING PRESCRIPTION PAYLOAD TO FIRESTORE:", payload);
-
       if (isEdit) {
         await updateDoc(doc(db, "medical_prescriptions", existingPrescription.id), payload);
-        console.log("✅ Prescription updated successfully!");
       } else {
         payload.createdAt = serverTimestamp();
-        const docRef = await addDoc(collection(db, "medical_prescriptions"), payload);
-        console.log("✅ New Prescription created with ID:", docRef.id);
-        
+        await addDoc(collection(db, "medical_prescriptions"), payload);
         await updateDoc(doc(db, "visits", activeVisit.id), { medsSent: true, status: "processing" });
       }
 
       onClose();
     } catch (err) {
-      console.error("🔥 Error saving prescription:", err);
+      console.error("Error saving prescription:", err);
       alert("Cillad ayaa dhacday marka prescription-ka la kaydinayay!");
     } finally {
       setLoading(false);
@@ -160,6 +203,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
       </DialogHeader>
 
       <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        {/* Reception Selection */}
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
           <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Send To Reception</label>
           <select 
@@ -168,14 +212,18 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
             onChange={(e) => setSelectedReception(e.target.value)}
           >
             <option value="">Select Receptionist...</option>
-            {receptions.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.fullName || r.name || r.email} {r.branch ? `(${r.branch})` : ''}
-              </option>
-            ))}
+            {receptions.map(r => {
+              const branchName = r.branch || r.branchId || (Array.isArray(r.branches) ? r.branches.join(", ") : "");
+              return (
+                <option key={r.id} value={r.id}>
+                  {r.fullName || r.name || r.email} {branchName ? `(${branchName})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 
+        {/* Symptoms & Diagnosis */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><ClipboardList size={10}/> Symptoms</label>
@@ -187,6 +235,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           </div>
         </div>
 
+        {/* Remarks */}
         <div className="space-y-1">
           <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><MessageSquare size={10}/> Remarks / Notes</label>
           <Textarea 
@@ -197,6 +246,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           />
         </div>
 
+        {/* Prescribed Medicines */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Prescribed Medicines</label>
           {prescribedItems.map((item, idx) => (
@@ -241,6 +291,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           <Button variant="outline" className="w-full border-dashed h-8 text-[9px] font-black rounded-lg text-blue-600" onClick={() => setPrescribedItems([...prescribedItems, { medicineId: "", medicineName: "", quantity: 1, dosage: "" }])}>+ Add Medicine</Button>
         </div>
 
+        {/* Submit Button */}
         <Button 
           disabled={loading} 
           className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase text-[11px] shadow-lg transition-all" 
