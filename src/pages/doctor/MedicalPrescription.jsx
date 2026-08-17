@@ -26,25 +26,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
 
   const isEdit = !!existingPrescription;
 
-  // Helper to safely parse strings/arrays into clean branch arrays
-  const extractBranches = (val) => {
-    if (!val) return [];
-    let list = [];
-    if (Array.isArray(val)) {
-      val.forEach(item => {
-        if (item) list.push(...String(item).split(","));
-      });
-    } else {
-      list = String(val).split(",");
-    }
-    return list.map(s => s.trim().toLowerCase()).filter(Boolean);
-  };
-
-  // Helper to normalize spelling differences (e.g. 'naciim' vs 'nacim')
-  const normalize = (str) => {
-    return str.toLowerCase().replace(/ii/g, "i").replace(/\s+/g, " ").trim();
-  };
-
   useEffect(() => {
     if (!activeVisit) return;
 
@@ -55,69 +36,115 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         const currentUser = auth.currentUser;
         let doctorBranchSet = new Set();
 
-        // 1. Fetch Doctor Profile branches
+        const addBranchString = (val) => {
+          if (!val) return;
+          String(val)
+            .split(",")
+            .forEach(b => {
+              const cleaned = b.trim().toLowerCase();
+              if (cleaned) doctorBranchSet.add(cleaned);
+            });
+        };
+
+        // 1. Fetch Doctor's profile
         if (currentUser) {
           const docSnap = await getDoc(doc(db, "users", currentUser.uid));
           if (docSnap.exists()) {
             const d = docSnap.data();
-            extractBranches(d.branch).forEach(b => doctorBranchSet.add(b));
-            extractBranches(d.branchId).forEach(b => doctorBranchSet.add(b));
-            extractBranches(d.branches).forEach(b => doctorBranchSet.add(b));
+            addBranchString(d.branch);
+            addBranchString(d.branchId);
+            if (Array.isArray(d.branches)) {
+              d.branches.forEach(b => addBranchString(b));
+            }
           }
 
-          // 2. Fetch Doctor's Visit history branches
+          // 2. Fetch all unique branches from Doctor's Visits
           const visitsQ = query(collection(db, "visits"), where("doctorId", "==", currentUser.uid));
           const visitsSnap = await getDocs(visitsQ);
-
           visitsSnap.docs.forEach(vDoc => {
             const v = vDoc.data();
-            extractBranches(v.branch).forEach(b => doctorBranchSet.add(b));
-            extractBranches(v.branchId).forEach(b => doctorBranchSet.add(b));
+            addBranchString(v.branch);
+            addBranchString(v.branchId);
           });
         }
 
         // Active Visit branch
-        extractBranches(activeVisit.branch).forEach(b => doctorBranchSet.add(b));
-        extractBranches(activeVisit.branchId).forEach(b => doctorBranchSet.add(b));
+        addBranchString(activeVisit.branch);
+        addBranchString(activeVisit.branchId);
 
         const doctorBranches = Array.from(doctorBranchSet);
 
-        // 3. Fetch all Receptionists
+        // 3. Fetch all reception users
         const recQ = query(collection(db, "users"), where("role", "==", "reception"));
         const recSnap = await getDocs(recQ);
         const allReceptions = recSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // 4. Filter receptionists matching doctor's assigned branches
+        // 4. Filter receptions matching ANY of the doctor's branches
         const filteredReceptions = allReceptions.filter(r => {
-          const rBranches = [
-            ...extractBranches(r.branch),
-            ...extractBranches(r.branchId),
-            ...extractBranches(r.branches)
-          ];
-
           if (doctorBranches.length === 0) return true;
 
-          return rBranches.some(rb => 
-            doctorBranches.some(db => normalize(rb) === normalize(db))
-          );
+          let rBranches = new Set();
+          const addRBranch = (val) => {
+            if (!val) return;
+            String(val).split(",").forEach(b => {
+              const cleaned = b.trim().toLowerCase();
+              if (cleaned) rBranches.add(cleaned);
+            });
+          };
+
+          addRBranch(r.branch);
+          addRBranch(r.branchId);
+          if (Array.isArray(r.branches)) {
+            r.branches.forEach(b => addRBranch(b));
+          }
+
+          const rBranchArray = Array.from(rBranches);
+          return rBranchArray.some(b => doctorBranches.includes(b));
         });
 
         setReceptions(filteredReceptions);
 
-        // 5. Fetch Inventory for active visit branch
-        const targetBranch = activeVisit.branchId || activeVisit.branch || "";
+        // 5. Dynamic Logic: AL NACIIM & HORSEED BAKAARO wadaagaa daawada, laamaha kale waa separate
+        const targetBranchId = activeVisit.branchId ? String(activeVisit.branchId).trim() : null;
+        const targetBranchName = activeVisit.branch ? String(activeVisit.branch).trim() : null;
 
-        if (targetBranch) {
+        // Group-ka laamaha isku daawada ah (Pair)
+        const sharedPair = ["HORSEED BAKAARO", "horseed bakaaro", "AL NACIIM", "al naciim", "AL-NACIIM", "al-naciim"];
+
+        let possibleBranches = [];
+
+        // Hubi haddii laanta bukaanku ka yimid ay ka tirsan tahay pair-kan
+        const isSharedBranch = sharedPair.some(
+          b => b.toLowerCase() === (targetBranchName?.toLowerCase() || targetBranchId?.toLowerCase())
+        );
+
+        if (isSharedBranch) {
+          // Haddii uu ka yimid Al Naciim ama Horseed Bakaaro, soo saar daawada labadoodaba
+          possibleBranches = Array.from(
+            new Set([targetBranchId, targetBranchName, ...sharedPair].filter(Boolean))
+          );
+        } else {
+          // Haddii uu ka yimid laan kale (e.g. Branch C), daawaheeda gaarka ah oo kaliya soo saar
+          possibleBranches = Array.from(
+            new Set([targetBranchId, targetBranchName].filter(Boolean))
+          );
+        }
+
+        if (possibleBranches.length > 0) {
           const invQ = query(
             collection(db, "branch_medicines"), 
-            where("branchId", "==", targetBranch)
+            where("branchId", "in", possibleBranches.slice(0, 10))
           );
 
           unsubscribeInventory = onSnapshot(invQ, (snap) => {
-            setInventory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            const itemsMap = new Map();
+            snap.docs.forEach(d => {
+              itemsMap.set(d.id, { id: d.id, ...d.data() });
+            });
+            setInventory(Array.from(itemsMap.values()));
             setFetching(false);
           }, (err) => {
-            console.error("Error fetching inventory:", err);
+            console.error("🔥 Inventory fetch error:", err);
             setFetching(false);
           });
         } else {
@@ -125,7 +152,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
         }
 
       } catch (err) {
-        console.error("Error fetching prescription data:", err);
+        console.error("🔥 Fetch error:", err);
         setFetching(false);
       }
     };
@@ -177,7 +204,7 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
 
       onClose();
     } catch (err) {
-      console.error("Error saving prescription:", err);
+      console.error("🔥 Error saving prescription:", err);
       alert("Cillad ayaa dhacday marka prescription-ka la kaydinayay!");
     } finally {
       setLoading(false);
@@ -203,7 +230,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
       </DialogHeader>
 
       <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-        {/* Reception Selection */}
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
           <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Send To Reception</label>
           <select 
@@ -223,7 +249,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           </select>
         </div>
 
-        {/* Symptoms & Diagnosis */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><ClipboardList size={10}/> Symptoms</label>
@@ -235,7 +260,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           </div>
         </div>
 
-        {/* Remarks */}
         <div className="space-y-1">
           <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1"><MessageSquare size={10}/> Remarks / Notes</label>
           <Textarea 
@@ -246,7 +270,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           />
         </div>
 
-        {/* Prescribed Medicines */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Prescribed Medicines</label>
           {prescribedItems.map((item, idx) => (
@@ -263,7 +286,14 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
                   }}
                 >
                   <option value="">Select Drug...</option>
-                  {inventory.map(inv => <option key={inv.id} value={inv.id}>{inv.medicineName} ({inv.quantity})</option>)}
+                  {inventory.map(inv => {
+                    const branchLabel = inv.branch || inv.branchName || inv.branchId || "HORSEED BAKAARO";
+                    return (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.medicineName} ({inv.quantity}) - {branchLabel}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               <div className="col-span-2">
@@ -291,7 +321,6 @@ export default function MedicalPrescription({ activeVisit, onClose, existingPres
           <Button variant="outline" className="w-full border-dashed h-8 text-[9px] font-black rounded-lg text-blue-600" onClick={() => setPrescribedItems([...prescribedItems, { medicineId: "", medicineName: "", quantity: 1, dosage: "" }])}>+ Add Medicine</Button>
         </div>
 
-        {/* Submit Button */}
         <Button 
           disabled={loading} 
           className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase text-[11px] shadow-lg transition-all" 
