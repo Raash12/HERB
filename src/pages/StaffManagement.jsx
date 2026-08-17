@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
@@ -27,6 +27,43 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
   const [uForm, setUForm] = useState(initialForm);
   const itemsPerPage = 6;
 
+  // Helper si uu 'i' iyo 'ii' iyo spaces-ka u barbardhigo
+  const normStr = (str) => {
+    if (!str) return "";
+    return str.toString().toLowerCase().replace(/ii/g, "i").replace(/\s+/g, "").trim();
+  };
+
+  // Function xogta branch-yada user-ka waafajinaya magaca saxda ah ee `branches`
+  const sanitizeBranches = (userBranches, availableBranches = branches) => {
+    if (!userBranches) return [];
+    const list = Array.isArray(userBranches) ? userBranches : [userBranches];
+
+    const cleaned = [];
+    list.forEach((ub) => {
+      if (typeof ub !== "string" || !ub.trim()) return;
+
+      // Smart match le'eg magaca rasmiga ah ee branches
+      const matchedBranch = availableBranches.find((b) => normStr(b.name) === normStr(ub));
+
+      if (matchedBranch) {
+        if (!cleaned.some(c => normStr(c) === normStr(matchedBranch.name))) {
+          cleaned.push(matchedBranch.name);
+        }
+      } else {
+        const trimmed = ub.trim();
+        if (!cleaned.some(c => normStr(c) === normStr(trimmed))) {
+          cleaned.push(trimmed);
+        }
+      }
+    });
+
+    return cleaned;
+  };
+
+  useEffect(() => {
+    console.log("=== [StaffManagement Loaded] ===");
+  }, [users, branches]);
+
   const resetForm = () => {
     setUForm(initialForm);
     setEditUserId(null);
@@ -34,18 +71,29 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
   };
 
   const handleBranchChange = (branchName) => {
-    const currentBranches = Array.isArray(uForm.branch) ? uForm.branch : [];
-    if (currentBranches.includes(branchName)) {
-      setUForm({
-        ...uForm,
-        branch: currentBranches.filter((b) => b !== branchName)
-      });
+    const currentBranches = sanitizeBranches(uForm.branch, branches);
+    
+    const exists = currentBranches.some(
+      (b) => normStr(b) === normStr(branchName)
+    );
+
+    let updatedBranches = [];
+    if (exists) {
+      updatedBranches = currentBranches.filter(
+        (b) => normStr(b) !== normStr(branchName)
+      );
     } else {
-      setUForm({
-        ...uForm,
-        branch: [...currentBranches, branchName]
-      });
+      updatedBranches = [...currentBranches, branchName.trim()];
     }
+
+    // Clean final list
+    const finalCleanList = sanitizeBranches(updatedBranches, branches);
+
+    console.log("Updated User Branches:", finalCleanList);
+    setUForm({
+      ...uForm,
+      branch: finalCleanList
+    });
   };
 
   const handleAddUser = async () => {
@@ -56,30 +104,39 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
     try {
       setLoading(true);
 
-      // Clean up data before saving
+      const { password, ...cleanFormData } = uForm;
+
+      // Clean/Sanitize branch list before sending to Firebase
+      const cleanBranchList = sanitizeBranches(uForm.branch, branches);
+
       const userData = {
-        ...uForm,
+        ...cleanFormData,
         fullName: uForm.fullName.trim(),
         email: uForm.email.trim(),
-        role: uForm.role.toLowerCase(), // Hubi in role-ku yahay lowercase mar walba
-        branch: Array.isArray(uForm.branch) ? uForm.branch : []
+        role: uForm.role.toLowerCase(),
+        branch: cleanBranchList,
+        updatedAt: Date.now()
       };
+
+      console.log("Saving User to Firestore...", { editUserId, userData });
 
       if (editUserId) {
         await updateDoc(doc(db, "users", editUserId), userData);
       } else {
         const res = await createUserWithEmailAndPassword(auth, uForm.email, uForm.password);
-        await setDoc(doc(db, "users", res.user.uid), { 
-          ...userData, 
-          id: res.user.uid, 
+        const newUserData = {
+          ...userData,
+          id: res.user.uid,
           createdAt: Date.now()
-        });
+        };
+        await setDoc(doc(db, "users", res.user.uid), newUserData);
       }
 
       resetForm();
       setShowUserModal(false); 
       if (fetchData) fetchData();
     } catch (err) { 
+      console.error("Error saving user:", err);
       alert(err.message); 
     } finally { 
       setLoading(false); 
@@ -111,13 +168,14 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
 
   const getSelectedBranchesLabel = () => {
-    if (!Array.isArray(uForm.branch) || uForm.branch.length === 0) {
+    const cleanList = sanitizeBranches(uForm.branch, branches);
+    if (cleanList.length === 0) {
       return "SELECT BRANCHES";
     }
-    if (uForm.branch.length === 1) {
-      return uForm.branch[0];
+    if (cleanList.length === 1) {
+      return cleanList[0];
     }
-    return `${uForm.branch.length} BRANCHES SELECTED`;
+    return `${cleanList.length} BRANCHES SELECTED`;
   };
 
   return (
@@ -134,7 +192,7 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
               className="pl-10 w-full h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-[10px] font-bold uppercase outline-none px-4" 
             />
           </div>
-          <Button onClick={() => { resetForm(); setShowUserModal(true); }} className="bg-blue-600 rounded-xl h-12 px-8 font-black uppercase text-[10px] tracking-widest">
+          <Button onClick={() => { resetForm(); setShowUserModal(true); }} className="bg-blue-600 rounded-xl h-12 px-8 font-black uppercase text-[10px] tracking-widest text-white">
             Add New Staff
           </Button>
         </div>
@@ -151,53 +209,58 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedData.map((user) => (
-              <TableRow key={user.id} className="border-slate-50 dark:border-slate-800 transition-colors">
-                <TableCell className="py-6 pl-10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-black text-xs uppercase">
-                      {user.fullName?.substring(0,2)}
+            {paginatedData.map((user) => {
+              const displayBranches = sanitizeBranches(user.branch, branches);
+              return (
+                <TableRow key={user.id} className="border-slate-50 dark:border-slate-800 transition-colors">
+                  <TableCell className="py-6 pl-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-black text-xs uppercase">
+                        {user.fullName?.substring(0,2)}
+                      </div>
+                      <div>
+                        <p className="font-black uppercase text-sm dark:text-white">{user.fullName}</p>
+                        <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">{user.role}</Badge>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-black uppercase text-sm dark:text-white">{user.fullName}</p>
-                      <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">{user.role}</Badge>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {Array.isArray(user.branch) && user.branch.length > 0 ? (
-                      user.branch.map((b, i) => (
-                        <Badge key={i} className="bg-indigo-500/10 text-indigo-500 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase">
-                          {b}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {displayBranches.length > 0 ? (
+                        displayBranches.map((b, i) => (
+                          <Badge key={i} className="bg-indigo-500/10 text-indigo-500 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase">
+                            {b}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge className="bg-slate-500/10 text-slate-500 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase">
+                          Global
                         </Badge>
-                      ))
-                    ) : (
-                      <Badge className="bg-indigo-500/10 text-indigo-500 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase">
-                        {typeof user.branch === "string" && user.branch !== "" ? user.branch : "Global"}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={`${user.active ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"} border-none px-4 py-1 rounded-full text-[9px] font-black uppercase`}>
-                    {user.active ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right pr-10 space-x-2">
-                  <Button variant="ghost" className="h-10 w-10 rounded-xl text-blue-600" onClick={() => {
-                    setEditUserId(user.id);
-                    setUForm({ 
-                      ...user, 
-                      password: "",
-                      branch: Array.isArray(user.branch) ? user.branch : (user.branch ? [user.branch] : [])
-                    });
-                    setShowUserModal(true);
-                  }}><Edit3 size={16} /></Button>
-                  <Button variant="ghost" className="h-10 w-10 rounded-xl text-red-500" onClick={() => handleDelete(user.id)}><Trash2 size={16} /></Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`${user.active ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"} border-none px-4 py-1 rounded-full text-[9px] font-black uppercase`}>
+                      {user.active ? "Active" : "Inactive"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right pr-10 space-x-2">
+                    <Button variant="ghost" className="h-10 w-10 rounded-xl text-blue-600" onClick={() => {
+                      setEditUserId(user.id);
+                      
+                      const cleanedBranches = sanitizeBranches(user.branch, branches);
+                      setUForm({ 
+                        ...user, 
+                        password: "",
+                        branch: cleanedBranches
+                      });
+                      setShowUserModal(true);
+                    }}><Edit3 size={16} /></Button>
+                    <Button variant="ghost" className="h-10 w-10 rounded-xl text-red-500" onClick={() => handleDelete(user.id)}><Trash2 size={16} /></Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
 
@@ -254,7 +317,11 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
                         <p className="text-[10px] text-slate-400 font-bold uppercase p-3">No branches available</p>
                       ) : (
                         branches.map((b) => {
-                          const isChecked = Array.isArray(uForm.branch) && uForm.branch.includes(b.name);
+                          const currentBranches = sanitizeBranches(uForm.branch, branches);
+                          const isChecked = currentBranches.some(
+                            (selectedBranch) => normStr(selectedBranch) === normStr(b.name)
+                          );
+
                           return (
                             <div
                               key={b.id}
@@ -284,7 +351,7 @@ export default function StaffManagement({ users = [], branches = [], fetchData }
                 </select>
               </div>
 
-              <Button onClick={handleAddUser} disabled={loading} className="w-full bg-blue-600 h-14 rounded-2xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-blue-500/30">
+              <Button onClick={handleAddUser} disabled={loading} className="w-full bg-blue-600 h-14 rounded-2xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-blue-500/30 text-white">
                 {loading ? "SAVING..." : "SAVE STAFF DATA"}
               </Button>
             </div>

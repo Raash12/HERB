@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription 
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox"; 
 import { 
   Loader2, UserPlus, MapPin, Search, Users, RefreshCcw, 
@@ -28,7 +30,7 @@ const SOMALIA_DISTRICTS = {
   Puntland: ["Garoowe","Bosaso","Qardho","Eyl","Dangorayo","Burtinle","Iskushuban","Bandarbeyla" , "Bandar Qaasim" ,"Caluula" , "Iskushuban" ,"Carmo" , "Galdogob" ,"Jariiban" ,"Bacadweyn"],
   Jubaland: ["Kismayo","Afmadow","Badhaadhe","Jamaame","Dhobley" ,"Garbahaarey " , "Baardheere" , "Ceelwaaq" , "Luuq" ,"Belet Xaawo" ,"Buurdhuubo" ,"Bu'aale " , "Jilib" , "Saakow" ,"Jilib"],
   Galmudug: ["Dhuusamareeb","Galkayo","Cadaado","Hobyo","Abudwak","Balanbale" ,"Ceelbuur" , "Ceeldheer" ,"xarerdhere" , "galhareri"],
-  "Koofur Galbeed": ["Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"ceelasha biyaha","Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere" , ],
+  "Koofur Galbeed": ["Baydhabo","Baraawe","Marka","Wanlaweyn","Qoryooley","Afgooye" ,"ceelasha biyaha","Tooro-toorow" ,"Kurtunwaarey" , "Sablaale" ,"Awdeegle" , "Tayeeglow" , "Wajid" ,"Ceelberde" , "Xudur" ,"Buurhakaba" ,"Diinsoor" ,"Qasaxdhere" ],
   Somaliland: ["Hargeisa","Berbera","Burao","Borama","Erigavo"],
   "Waqoyi Bari": ["Laascaanood","Taleex","Xudun"]
 };
@@ -54,71 +56,82 @@ export default function CustomerRegistration() {
     department: "", doctorId: "", doctorName: "", amount: ""
   });
 
-  // =========================================================================
-  // FIXED FETCH DOCTORS: Client-side filtering ensures doctors with 2+ branches 
-  // appear in both branches regardless of Array or String formatting in DB
-  // =========================================================================
+  // Standard cleanup for strings/arrays matching
+  const cleanStr = (str) => {
+    if (!str) return "";
+    return str.toString().toLowerCase().replace(/\s+/g, "").trim();
+  };
+
   useEffect(() => {
     const fetchContext = async () => {
       const currentUser = auth.currentUser;
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.log("❌ No logged-in user found in Firebase Auth!");
+        return;
+      }
 
       try {
-        // 1. Soo hel branch-ka Reception-ka / Admin-ka login-ka ah
-        const userSnap = await getDoc(doc(db, "users", currentUser.uid));
-        
+        // 1. Direct fetch from Firestore users collection for current user
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        let userBranchRaw = "";
         if (userSnap.exists()) {
-          const userBranchData = userSnap.data().branch;
-          
-          // Dhulalka branch-ka isticmaalaha hadda jooga
-          let currentBranchName = "";
-          if (Array.isArray(userBranchData) && userBranchData.length > 0) {
-            currentBranchName = userBranchData[0];
-          } else if (typeof userBranchData === "string") {
-            currentBranchName = userBranchData;
+          const uData = userSnap.data();
+          if (Array.isArray(uData.branch) && uData.branch.length > 0) {
+            userBranchRaw = uData.branch[0];
+          } else if (typeof uData.branch === "string") {
+            userBranchRaw = uData.branch;
+          }
+          console.log("🔥 [Firestore User Branch Fetched]:", userBranchRaw, uData);
+        } else {
+          console.warn("⚠️ User document not found in Firestore!");
+        }
+
+        setMyBranch(userBranchRaw);
+
+        // 2. Fetch all users from Firestore
+        const querySnapshot = await getDocs(collection(db, "users"));
+        const allUsers = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        const targetBranchClean = cleanStr(userBranchRaw);
+
+        // 3. Filter Doctors & Receptionists based on matching branch criteria
+        const matchedDoctors = allUsers.filter(u => {
+          const roleClean = cleanStr(u.role);
+          const isDoc = roleClean === "doctor";
+          if (!isDoc) return false;
+
+          let docBranches = [];
+          if (Array.isArray(u.branch)) {
+            docBranches = u.branch.map(cleanStr);
+          } else if (typeof u.branch === "string") {
+            docBranches = [cleanStr(u.branch)];
           }
 
-          setMyBranch(currentBranchName);
-          if (!currentBranchName) return;
+          // Smart match: exact match or substring tolerance (handles "al nacim" vs "al naciim")
+          const isMatch = docBranches.some(b => {
+            if (b === targetBranchClean) return true;
+            if (b.replace(/ii/g, "i") === targetBranchClean.replace(/ii/g, "i")) return true;
+            return false;
+          });
 
-          // 2. Soo jiid Dhammaan Dhaqaatiirta (Role == "doctor")
-          const qDoctors = query(
-            collection(db, "users"), 
-            where("role", "==", "doctor")
-          );
+          console.log(`👨‍⚕️ [Doctor Check]: ${u.fullName} | Branch: ${JSON.stringify(u.branch)} | Match: ${isMatch}`);
+          return isMatch;
+        });
 
-          const querySnapshot = await getDocs(qDoctors);
+        console.log("✅ [Final Matched Doctors List]:", matchedDoctors);
+        setDoctors(matchedDoctors);
 
-          // 3. Client-Side Filter: Hubi in Dhaqtarku leeyahay Branch-kan (Array ama String)
-          const matchedDoctors = querySnapshot.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .filter(docData => {
-              if (!docData.branch) return false;
-
-              // Yoo tahay Array (sida ku jirta StaffManagement: ["Mogadishu", "Hargeisa"])
-              if (Array.isArray(docData.branch)) {
-                return docData.branch.includes(currentBranchName);
-              }
-
-              // Yoo tahay String (e.g. "Mogadishu")
-              if (typeof docData.branch === "string") {
-                return docData.branch.toLowerCase().includes(currentBranchName.toLowerCase());
-              }
-
-              return false;
-            });
-
-          setDoctors(matchedDoctors);
-        }
       } catch (error) {
-        console.error("Error fetching context/doctors:", error);
+        console.error("❌ Error fetching context from Firestore:", error);
       }
     };
 
     fetchContext();
   }, []);
 
-  // Real-time listener for Patients belonging to current branch
+  // Real-time listener for Patients by branch
   useEffect(() => {
     if (!myBranch) return;
     const q = query(
@@ -336,7 +349,7 @@ export default function CustomerRegistration() {
           <h2 className="text-2xl md:text-3xl font-black flex items-center gap-2 text-slate-800">
             <Users className="text-blue-600" size={28} /> MASTER REGISTRY
           </h2>
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-tight">Branch: {myBranch || "..."}</p>
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-tight">Branch: {myBranch || "Loading..."}</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
           <div className="relative w-full sm:w-64">
@@ -410,7 +423,10 @@ export default function CustomerRegistration() {
       {/* NEW PATIENT DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl bg-white">
-          <DialogHeader><DialogTitle className="text-2xl font-black text-blue-600 uppercase">New Patient</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-blue-600 uppercase">New Patient</DialogTitle>
+            <DialogDescription>Register a new patient and select doctor.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={handleRegisterNew} className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="text-[10px] font-black uppercase">Full Name</label>
@@ -454,9 +470,21 @@ export default function CustomerRegistration() {
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase">Doctor</label>
-                <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
-                  <option value="">Select Doctor</option>
-                  {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
+                <select 
+                  className="w-full p-2 border rounded-md text-sm bg-white" 
+                  value={formData.doctorId} 
+                  onChange={e => { 
+                    const d = doctors.find(x => x.id === e.target.value); 
+                    setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || d?.name || "" }); 
+                  }} 
+                  required
+                >
+                  <option value="">Select Doctor ({doctors.length} available)</option>
+                  {doctors.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.fullName || d.name || d.email}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -474,7 +502,10 @@ export default function CustomerRegistration() {
       {/* RESEND DIALOG */}
       <Dialog open={resendOpen} onOpenChange={setResendOpen}>
         <DialogContent className="max-w-md rounded-2xl bg-white">
-          <DialogHeader><DialogTitle className="text-xl font-black text-blue-600 uppercase">Returning Visit</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-blue-600 uppercase">Returning Visit</DialogTitle>
+            <DialogDescription>Assign doctor for returning visit.</DialogDescription>
+          </DialogHeader>
           {selectedPatient && (
             <form onSubmit={handleResend} className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
@@ -493,9 +524,21 @@ export default function CustomerRegistration() {
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase">Assign Doctor</label>
-                <select className="w-full p-2 border rounded-md text-sm bg-white" value={formData.doctorId} onChange={e => { const d = doctors.find(x => x.id === e.target.value); setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || "" }); }} required>
+                <select 
+                  className="w-full p-2 border rounded-md text-sm bg-white" 
+                  value={formData.doctorId} 
+                  onChange={e => { 
+                    const d = doctors.find(x => x.id === e.target.value); 
+                    setFormData({ ...formData, doctorId: e.target.value, doctorName: d?.fullName || d?.name || "" }); 
+                  }} 
+                  required
+                >
                   <option value="">Select Doctor</option>
-                  {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
+                  {doctors.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.fullName || d.name || d.email}
+                    </option>
+                  ))}
                 </select>
               </div>
               <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-black uppercase text-white" disabled={loading}>
@@ -509,7 +552,10 @@ export default function CustomerRegistration() {
       {/* EDIT DIALOG */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-xl bg-white">
-          <DialogHeader><DialogTitle className="text-xl font-black text-blue-600 uppercase">Edit Patient</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-blue-600 uppercase">Edit Patient</DialogTitle>
+            <DialogDescription>Update patient details.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4">
             <div className="col-span-2"><label className="text-[10px] font-black uppercase">Full Name</label><Input value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} /></div>
             <div><label className="text-[10px] font-black uppercase">Age</label><Input type="number" value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} /></div>
