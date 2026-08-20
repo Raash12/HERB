@@ -60,56 +60,74 @@ export default function ReceptionDashboard() {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           const userData = userDoc.exists() ? userDoc.data() : {};
+          
           // Clean & trim branch string to avoid typo gaps
           const rawBranch = userData.branch || userData.branchId || userData.branchName || "";
           const cleanBranch = rawBranch.toString().trim();
+          const currentUserId = user.uid;
 
-          console.log("👤 [Auth Check] Logged in user:", user.email, "| Detected Branch:", cleanBranch);
+          console.log("👤 [Auth Check] Logged in user:", user.email, "| ID:", currentUserId, "| Detected Branch:", cleanBranch);
           setUserBranch(cleanBranch);
 
-          if (cleanBranch) {
+          if (cleanBranch || currentUserId) {
             // 1. Fetch Patients
-            const qPatients = query(
-              collection(db, "patients"), 
-              where("branch", "==", cleanBranch)
-            );
-            unsubPatients = onSnapshot(qPatients, (snap) => {
-              const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-              const todayStr = new Date().toLocaleDateString('en-CA');
-              setStats(prev => ({
-                ...prev,
-                total: docs.length,
-                today: docs.filter(p => p.createdAt?.toDate()?.toLocaleDateString('en-CA') === todayStr).length
-              }));
-            }, err => console.error("🔥 Patients listener error:", err));
+            if (cleanBranch) {
+              const qPatients = query(
+                collection(db, "patients"), 
+                where("branch", "==", cleanBranch)
+              );
+              unsubPatients = onSnapshot(qPatients, (snap) => {
+                const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const todayStr = new Date().toLocaleDateString('en-CA');
+                setStats(prev => ({
+                  ...prev,
+                  total: docs.length,
+                  today: docs.filter(p => p.createdAt?.toDate()?.toLocaleDateString('en-CA') === todayStr).length
+                }));
+              }, err => console.error("🔥 Patients listener error:", err));
+            }
 
-            // 2. Fetch Optical Prescriptions (Flexibility for branch or branchId)
-            const qOptical = query(
-              collection(db, "prescriptions"), 
-              where("branch", "==", cleanBranch), 
-              orderBy("createdAt", "desc")
-            );
-            unsubOptical = onSnapshot(qOptical, (snap) => {
-              const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'optical' }));
-              console.log(`👓 [Optical Fetch] Branch (${cleanBranch}):`, data.length, "items found.");
-              setOpticalPrescriptions(data);
-            }, err => console.error("🔥 Optical listener error:", err));
+            // 2. Fetch Optical Prescriptions
+            if (cleanBranch) {
+              const qOptical = query(
+                collection(db, "prescriptions"), 
+                where("branch", "==", cleanBranch), 
+                orderBy("createdAt", "desc")
+              );
+              unsubOptical = onSnapshot(qOptical, (snap) => {
+                const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'optical' }));
+                console.log(`👓 [Optical Fetch] Branch (${cleanBranch}):`, data.length, "items found.");
+                setOpticalPrescriptions(data);
+              }, err => console.error("🔥 Optical listener error:", err));
+            }
 
-            // 3. Fetch Medical Prescriptions
-            const qMedical = query(
-              collection(db, "medical_prescriptions"), 
-              where("branch", "==", cleanBranch), 
-              orderBy("createdAt", "desc")
-            );
+            // 3. Fetch Medical Prescriptions (Flexibility for cross-branch & specific reception routing)
+            const qMedical = query(collection(db, "medical_prescriptions"));
             unsubMedical = onSnapshot(qMedical, (snap) => {
-              const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), category: 'medical' }));
-              console.log(`💊 [Medical Fetch] Branch (${cleanBranch}):`, data.length, "items found.");
+              const cleanedUserBranch = cleanBranch.toLowerCase().trim();
+
+              const data = snap.docs
+                .map(doc => ({ id: doc.id, ...doc.data(), category: 'medical' }))
+                .filter(order => {
+                  const orderSendToUser = String(order.sendTo || order.sendToUserId || "");
+                  const orderTargetBranch = String(
+                    order.sendToBranchId || order.targetBranchId || order.branchId || order.branch || ""
+                  ).toLowerCase().trim();
+
+                  // Match either directly sent to this Receptionist OR to their Branch
+                  return orderSendToUser === currentUserId || (cleanedUserBranch && orderTargetBranch === cleanedUserBranch);
+                });
+
+              console.log(`💊 [Medical Fetch] Total matched orders:`, data.length);
               setMedicalPrescriptions(data);
               setInitialLoading(false);
-            }, err => console.error("🔥 Medical listener error:", err));
+            }, err => {
+              console.error("🔥 Medical listener error:", err);
+              setInitialLoading(false);
+            });
 
           } else {
-            console.warn("⚠️ User has NO branch assigned in Firestore 'users' collection!");
+            console.warn("⚠️ User has NO branch or ID assigned in Firestore!");
             setInitialLoading(false);
           }
         } catch (error) {

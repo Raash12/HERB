@@ -39,6 +39,7 @@ export default function ReceptionPrescriptions({ data = [] }) {
           status: order.status,
           branch: order.branch,
           branchId: order.branchId,
+          targetBranchId: order.targetBranchId || order.sendToBranchId || order.branchId,
           sendTo: order.sendTo,
           itemsCount: order.items?.length || 0
         });
@@ -70,19 +71,20 @@ export default function ReceptionPrescriptions({ data = [] }) {
     if (data?.length > 0) fetchPatientNames();
   }, [data]);
 
-  // 2. Fetch Live Prices & Stock
-  const fetchLiveInfo = async (items) => {
-    console.log("💊 Fetching live inventory stock for items:", items);
+  // 2. Fetch Live Prices & Stock (Aad uga faa'iideysanaya Target Branch-ka)
+  const fetchLiveInfo = async (items, orderTargetBranchId) => {
+    console.log("💊 Fetching live inventory stock for items:", items, "Branch:", orderTargetBranchId);
     const infoMap = {};
     for (const item of items) {
       if (item.medicineId) {
         try {
+          // Haddii uu jiro medicineRef toos ah ama lagu kaydiyay branch_medicines
           const medDoc = await getDoc(doc(db, "branch_medicines", item.medicineId));
           if (medDoc.exists()) {
             const medData = medDoc.data();
             console.log(`✅ Medicine fetched (${item.medicineName || item.medicineId}):`, medData);
             infoMap[item.medicineId] = {
-              unitPrice: medData.quantity > 0 ? (medData.unitPrice || (medData.price / medData.quantity)) : 0,
+              unitPrice: medData.quantity > 0 ? (medData.unitPrice || (medData.price / medData.quantity)) : (item.price || item.unitPrice || 0),
               currentQty: Number(medData.quantity || 0)
             };
           } else {
@@ -104,7 +106,8 @@ export default function ReceptionPrescriptions({ data = [] }) {
     } else {
       setSelectedOrderId(order.id);
       if (order.category === 'medical' && order.items) {
-        fetchLiveInfo(order.items);
+        const targetBranch = order.targetBranchId || order.sendToBranchId || order.branchId;
+        fetchLiveInfo(order.items, targetBranch);
       }
     }
   };
@@ -318,7 +321,10 @@ export default function ReceptionPrescriptions({ data = [] }) {
                           <div className="text-sm font-black text-slate-700 uppercase">
                             {patientNames[order.patientId] || order.patientName || "Loading..."}
                           </div>
-                          <div className="text-[9px] font-bold text-slate-400">ID: {order.id.slice(-8).toUpperCase()}</div>
+                          <div className="text-[9px] font-bold text-slate-400">
+                            ID: {order.id.slice(-8).toUpperCase()} 
+                            {order.targetBranchName && <span className="ml-2 text-indigo-500">({order.targetBranchName})</span>}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
